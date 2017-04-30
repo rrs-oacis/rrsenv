@@ -2,7 +2,7 @@
 
 WGETJAVA='wget -O'
 WGETJAVA_OPTION='--no-check-certificate --no-cookies --header'
-WGETSOUT='wget --no-check-certificate -q -O -'
+WGETSOUT='wget --no-check-certificate -O -'
 if ! [ -x `which wget||echo /dev/null` ]; then
 	if [ -x `which curl||echo /dev/null` ]; then
     WGETJAVA='curl -o'
