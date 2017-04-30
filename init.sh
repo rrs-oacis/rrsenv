@@ -43,8 +43,8 @@ if ! [ -x `which javac||echo /dev/null` ]; then
         FILE_SUFFIX='linux-i586.tar.gz'
     fi
 
-    $FILENAME=${DL_JAVA_VER}-${FILE_SUFFIX}
-    $WGET_FILE $FILENAME ${HEADER_OPTION} "Cookie: oraclelicense=accept-securebackup-cookie" `$WGETSOUT http://www.oracle.com/technetwork/java/javase/downloads/index.html | grep -o "\/technetwork\/java/\javase\/downloads\/jdk${DL_JAVA_VER}-downloads-[0-9]*\.html" | head -1 | xargs -I@ echo "http://www.oracle.com"@ | xargs $WGETSOUT 2>/dev/null | grep -o "http.*jdk-${DL_JAVA_VER}u[0-9]*-${FILE_SUFFIX}" | head -1`
+    FILENAME=${DL_JAVA_VER}-${FILE_SUFFIX}
+    $WGETJAVA $FILENAME ${WGETJAVA_OPTION} "Cookie: oraclelicense=accept-securebackup-cookie" `$WGETSOUT http://www.oracle.com/technetwork/java/javase/downloads/index.html | grep -o "\/technetwork\/java/\javase\/downloads\/jdk${DL_JAVA_VER}-downloads-[0-9]*\.html" | head -1 | xargs -I@ echo "http://www.oracle.com"@ | xargs $WGETSOUT 2>/dev/null | grep -o "http.*jdk-${DL_JAVA_VER}u[0-9]*-${FILE_SUFFIX}" | head -1`
 
     DLSTAT=$?
     if [ $DLSTAT -ne 0 -o ! -e "${FILENAME}" ]; then
