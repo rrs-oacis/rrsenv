@@ -1,0 +1,7 @@
+
+
+SERVER_SS='robocup@172.16.100.43'
+SERVER_C1='robocup@172.16.100.44'
+SERVER_C2='robocup@172.16.100.45'
+SERVER_C3='robocup@172.16.100.46'
+
