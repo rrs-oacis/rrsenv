@@ -26,6 +26,7 @@ rm -rf roborescue 2>/dev/null
 
 mkdir MAP
 mkdir AGENT
+mkdir LOG
 mkdir tmp
 mkdir workspace
 
