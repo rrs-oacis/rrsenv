@@ -3,7 +3,7 @@
 . ./config.cfg
 
 MAP=$1
-TEAM=$2
+AGENT=$2
 DATECODE=`date +%y%m%d`
 
 cd `dirname $0`
@@ -15,7 +15,7 @@ function serverProc {
 
 function clientProc {
     rm /tmp/robocup-exitcode${5}.tmp
-    sh -c "ssh $4 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; cd /var/tmp/robocup/${5}/TEAM/${TEAM}; bash ./precompute.sh $1 0 $2 0 $3 0 ${SERVER_SS}' ; echo $? > /tmp/robocup-exitcode${5}.tmp" &
+    sh -c "ssh $4 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; cd /var/tmp/robocup/${5}/AGENT/${AGENT}; bash ./precompute.sh $1 0 $2 0 $3 0 ${SERVER_SS}' ; echo $? > /tmp/robocup-exitcode${5}.tmp" &
 }
 
 sh ./killjava.sh

@@ -3,7 +3,7 @@
 . ./config.cfg
 
 MAP=$1
-TEAM=$2
+AGENT=$2
 DATECODE=`date +%y%m%d`
 EXITCODE=0
 
@@ -21,11 +21,11 @@ function serverProc {
 }
 
 function clientProc {
-    ssh $1 mkdir -p /var/tmp/robocup/$2/TEAM
-    ssh $1 rm -rf /var/tmp/robocup/$2/TEAM/${TEAM}
-    scp -r ../TEAM/${TEAM} ${1}:/var/tmp/robocup/$2/TEAM/
-    ssh $1 chmod a+x /var/tmp/robocup/$2/TEAM/${TEAM}/*.sh
-    ssh $1 sh -c "\"cd /var/tmp/robocup/$2/TEAM/${TEAM} ; bash ./compile.sh\""
+    ssh $1 mkdir -p /var/tmp/robocup/$2/AGENT
+    ssh $1 rm -rf /var/tmp/robocup/$2/AGENT/${AGENT}
+    scp -r ../AGENT/${AGENT} ${1}:/var/tmp/robocup/$2/AGENT/
+    ssh $1 chmod a+x /var/tmp/robocup/$2/AGENT/${AGENT}/*.sh
+    ssh $1 sh -c "\"cd /var/tmp/robocup/$2/AGENT/${AGENT} ; bash ./compile.sh\""
     EXITCODE=`echo $? $EXITCODE |awk '{print $1 + $2;}'`
 }
 

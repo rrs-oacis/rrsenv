@@ -13,19 +13,19 @@ fi
 
 cd `dirname $0`
 
-if [ -d 'MAP' -a -d 'TEAM' -a -d 'tmp' -a -d 'workspace' ]; then
-    echo "[!] If you want to initialize, please remove 'MAP' or 'TEAM' or 'tmp' or 'workspace'.";
+if [ -d 'MAP' -a -d 'AGENT' -a -d 'tmp' -a -d 'workspace' ]; then
+    echo "[!] If you want to initialize, please remove 'MAP' or 'AGENT' or 'tmp' or 'workspace'.";
     exit 0;
 fi
 
 rm -rf MAP 2>/dev/null
-rm -rf TEAM 2>/dev/null
+rm -rf AGENT 2>/dev/null
 rm -rf tmp 2>/dev/null
 rm -rf workspace 2>/dev/null
 rm -rf roborescue 2>/dev/null
 
 mkdir MAP
-mkdir TEAM
+mkdir AGENT
 mkdir tmp
 mkdir workspace
 
