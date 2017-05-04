@@ -66,3 +66,4 @@ fi
 $WGETSOUT https://raw.githubusercontent.com/tkmnet/rcrs-scripts/master/install-roborescue.sh | sh
 mv ./* ../roborescue
 
+rm $0
