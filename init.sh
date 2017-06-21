@@ -69,5 +69,6 @@ mv ./* ../roborescue
 
 cd ${PWD}
 pwd
+echo ${PWD}
 ls
 rm init.sh
