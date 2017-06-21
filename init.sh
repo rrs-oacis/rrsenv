@@ -68,4 +68,4 @@ $WGETSOUT https://raw.githubusercontent.com/tkmnet/rcrs-scripts/master/install-r
 mv ./* ../roborescue
 
 cd ${PWD}
-rm $0
+rm init.sh
