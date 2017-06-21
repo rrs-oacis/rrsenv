@@ -12,7 +12,7 @@ if ! [ -x `which wget||echo /dev/null` ]; then
 fi
 
 cd `dirname $0`
-PWD=`pwd`
+BASEDIR=`pwd`
 
 if [ -d 'MAP' -a -d 'AGENT' -a -d 'tmp' -a -d 'workspace' ]; then
     echo "[!] If you want to initialize, please remove 'MAP' or 'AGENT' or 'tmp' or 'workspace'.";
@@ -67,8 +67,5 @@ fi
 $WGETSOUT https://raw.githubusercontent.com/tkmnet/rcrs-scripts/master/install-roborescue.sh | sh
 mv ./* ../roborescue
 
-cd ${PWD}
-pwd
-echo ${PWD}
-ls
+cd ${BASEDIR}
 rm init.sh
