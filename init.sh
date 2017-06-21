@@ -68,4 +68,5 @@ $WGETSOUT https://raw.githubusercontent.com/tkmnet/rcrs-scripts/master/install-r
 mv ./* ../roborescue
 
 cd ${BASEDIR}
+echo rm ${BASEDIR}/init.sh
 rm init.sh
