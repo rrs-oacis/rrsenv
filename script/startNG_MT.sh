@@ -10,10 +10,11 @@ DATECODE=`date +%y%m%d`
 
 function serverProc {
     ssh $1 sh -c "'cat /tmp/.X100-lock | sed -e \"s/ //g\" | xargs kill'" >/dev/null 2>&1
-    ssh $1 sh -c "'export LC_ALL=en_US.UTF-8; export DISPLAY=:0; cd /var/tmp/robocup/${2}/roborescue/boot; ./noGUI-start-comprun.sh -m ../../MAP/${MAP}/map -c ../../MAP/${MAP}/config'" >${OACIS_WORKDIR}/server.log
+    ssh $1 sh -c "'export LC_ALL=en_US.UTF-8; export DISPLAY=:0; cd /var/tmp/robocup/${2}/roborescue/boot; ./start-comprun.sh -m ../../MAP/${MAP}/map -c ../../MAP/${MAP}/config -t ${AAGENT}'" >${OACIS_WORKDIR}/server.log
     sleep 3
 
-    ssh $1 sh -c "'cd /var/tmp/robocup/${2}/roborescue/boot; tar zcvf ../../LOG/${DATECODE}-${MAP}/${DATECODE}-${MAP}-${FAGENT}-${PAGENT}-${AAGENT}.tar.gz logs'"
+    ssh $1 sh -c "'cd /var/tmp/robocup/${2}/roborescue/boot; 7za a -m0=lzma2 ../../LOG/${DATECODE}-${MAP}/${DATECODE}-${MAP}-${AAGENT}.7z logs'"
+    scp $1:"/var/tmp/robocup/${2}/LOG/${DATECODE}-${MAP}/${DATECODE}-${MAP}-${AAGENT}.7z" ${OACIS_WORKDIR}/simulation_log.7z
     ssh $1 sh -c "'cd /var/tmp/robocup/${2}/roborescue/boot; echo "${DATECODE},${MAP},${FAGENT},${PAGENT},${AAGENT},"; sh ./print-lastscore.sh'" | tee ${OACIS_WORKDIR}/score.txt
     ssh $1 sh -c "'export LC_ALL=en_US.UTF-8; export DISPLAY=:0; rm -rf /tmp/img_log; mkdir /tmp/img_log; cd /var/tmp/robocup/${2}/roborescue/boot; bash ./logextract.sh ./logs/rescue.log /tmp/img_log'"
     scp -r $1:/tmp/img_log ${OACIS_WORKDIR}/
