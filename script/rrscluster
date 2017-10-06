@@ -1,0 +1,195 @@
+#!/usr/bin/perl
+#
+use Net::OpenSSH; # cpan -i Net::OpenSSH
+use Getopt::Long qw(GetOptionsFromArray :config posix_default no_ignore_case gnu_compat);
+use strict;
+use warnings;
+use Data::Dumper;
+
+my $RRSDIR = "/var/tmp/robocup";
+
+my @nodelist = (
+	{"name" => "server"},
+	{"name" => "ambulance"},
+	{"name" => "fire"},
+	{"name" => "police"});
+
+my $argc = @ARGV;
+if ($argc < 1)
+{
+	print_help();
+	exit -1;
+}
+
+my ($cmd, @opts) = @ARGV;
+my ($verbose);
+GetOptionsFromArray(\@opts, "verbose|v" => \$verbose) or exit(10);
+
+my $cfg = {};
+my $cfg_file = './rrscluster.cfg';
+load_cfg();
+
+
+
+if ($cmd eq "set")
+{
+}
+elsif ($cmd eq "setup")
+{
+}
+elsif ($cmd eq "check")
+{
+	connect_hosts();
+
+	foreach my $node (@nodelist)
+	{
+		$node->{"ssh"}->system("test 0") or
+		print "@".$node->{"alias"}."21\n";
+
+		my $workdir = $RRSDIR."/".$node->{"alias"};
+
+		$node->{"ssh"}->system("test -d ".$workdir) or
+		print "@".$node->{"alias"}."22\n";
+
+		$node->{"ssh"}->system("test -r ".$workdir." -a -w ".$workdir." -a -x ".$workdir) or
+		print "@".$node->{"alias"}."23\n";
+
+		$node->{"ssh"}->system("sh -c 'export DISPLAY=:0.0; xhost || echo disabled' | grep -q disabled") or
+		print "@".$node->{"alias"}."24\n";
+
+		$node->{"ssh"}->system("sh -c 'java -version 2>&1' | grep -q HotSpot ; echo $?") or
+		print "@".$node->{"alias"}."25\n";
+	}
+}
+elsif ($cmd eq "show-cfg")
+{
+	if (!cfg_loaded()) { exit 1; }
+	print Dumper($cfg)."\n";
+}
+elsif ($cmd eq "cfg-template")
+{
+	my $username = $ENV{LOGNAME} || $ENV{USER} || getpwuid($<);
+	foreach my $node (@nodelist)
+	{
+		$cfg->{$node->{"name"}} = $username.'@localhost';
+	}
+
+	save_cfg();
+}
+else
+{
+	print_help();
+}
+
+exit 0;
+
+
+my $host = 'takamin@localhost';
+
+my $ssh = Net::OpenSSH->new($host,
+	batch_mode => 1,
+	master_opts => [ -o => "StrictHostKeyChecking=no"]);
+$ssh->error and exit(100);
+
+$ssh->system("ls /tmp") or
+die "remote command failed: " . $ssh->error;
+
+my @ls = $ssh->capture("ls");
+$ssh->error and
+die "remote ls command failed: " . $ssh->error;
+
+my ($out, $err) = $ssh->capture2("echo ok");
+$ssh->error and
+die "remote find command failed: " . $ssh->error;
+
+my ($rin, $pid) = $ssh->pipe_in("cat >/tmp/foo") or
+die "pipe_in method failed: " . $ssh->error;
+
+print $rin "hello\n";
+close $rin;
+
+my ($rout, $pid2) = $ssh->pipe_out("cat /tmp/foo") or
+die "pipe_out method failed: " . $ssh->error;
+
+while (<$rout>) { print }
+close $rout;
+
+my ($in, $out2 ,$pid3) = $ssh->open2("foo");
+
+print $in."\n";
+print $out2."\n";
+print $pid3."\n";
+
+
+sub print_help
+{
+	print "<HELP>";
+	print "\n";
+}
+
+sub cfg_loaded
+{
+	return defined($cfg);
+}
+
+sub save_cfg
+{
+	open(OUT, ">$cfg_file") or die "$!";
+	my $dumper = Data::Dumper->new([]);
+	$dumper->Terse(1);
+	$dumper->Values([$cfg]);
+	print OUT $dumper->Dump;
+	close(OUT);
+}
+
+sub load_cfg
+{
+	if (-e $cfg_file)
+	{
+		$cfg = do $cfg_file or die "$!$@";
+		foreach my $node (@nodelist)
+		{
+			$node->{"host"} = $cfg->{$node->{"name"}};
+			$node->{"alias"} = uc(substr($node->{"name"}, 0, 1));
+
+			if ($verbose)
+			{
+				print "[CONFIG] ".$node->{"name"}." ---> ".$node->{"host"}."\n";
+			}
+		}
+
+		return 0;
+	}
+	else
+	{
+		undef($cfg);
+		return 1;
+	}
+}
+
+sub connect_hosts
+{
+	foreach my $node (@nodelist)
+	{
+		$node->{"ssh"} = Net::OpenSSH->new(
+			$node->{"host"},
+			batch_mode => 1,
+			master_opts => [ -o => "StrictHostKeyChecking=no"]);
+		$node->{"ssh"}->error and print "@".$node->{"alias"}."20\n";
+
+		if ($verbose)
+		{
+			print "[SSH] ".$node->{"name"}." : ".$node->{"ssh"}->error."\n";
+		}
+	}
+}
+
+sub server_proc
+{
+	$nodelist[0]->{"ssh"}->system("ls");
+}
+
+sub client_proc
+{
+}
+
