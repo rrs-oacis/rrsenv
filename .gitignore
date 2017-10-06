@@ -5,3 +5,4 @@ tmp/
 workspace/
 roborescue/
 jdk*/
+/init.sh
