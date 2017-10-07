@@ -32,8 +32,8 @@ function clientProc {
 }
 
 serverProc $SERVER_SS S
-clientProc $SERVER_C1 1 $FAGENT
-clientProc $SERVER_C2 2 $PAGENT
-clientProc $SERVER_C3 3 $AAGENT
+clientProc $SERVER_C1 F $FAGENT
+clientProc $SERVER_C2 P $PAGENT
+clientProc $SERVER_C3 A $AAGENT
 
 exit $EXITCODE

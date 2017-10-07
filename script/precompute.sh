@@ -22,9 +22,9 @@ function clientProc {
 sh ./killjava.sh
 
 serverProc $SERVER_SS S
-clientProc 1 0 0 $SERVER_C1 1
-clientProc 0 1 0 $SERVER_C2 2
-clientProc 0 0 1 $SERVER_C3 3
+clientProc 1 0 0 $SERVER_C1 F
+clientProc 0 1 0 $SERVER_C2 P
+clientProc 0 0 1 $SERVER_C3 A
 
 
 COUNTDOWN=0

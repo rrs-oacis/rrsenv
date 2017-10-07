@@ -25,9 +25,9 @@ function clientProc {
     ssh $4 sh -c "\"sleep 10 ; cd /var/tmp/robocup/${5}/AGENT/${6} ; bash ./start.sh $1 $1 $2 $2 $3 $3 `echo ${SERVER_SS}|sed -e 's/^.*@//'`\"" >${OACIS_WORKDIR}/agent${5}.log &
 }
 
-clientProc -1 0 0 $SERVER_C1 1 $FAGENT
-clientProc 0 -1 0 $SERVER_C2 2 $PAGENT
-clientProc 0 0 -1 $SERVER_C3 3 $AAGENT
+clientProc -1 0 0 $SERVER_C1 F $FAGENT
+clientProc 0 -1 0 $SERVER_C2 P $PAGENT
+clientProc 0 0 -1 $SERVER_C3 A $AAGENT
 
 serverProc $SERVER_SS S
 
