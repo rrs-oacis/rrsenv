@@ -59,6 +59,15 @@ elsif ($cmd eq "check")
 
 		$node->{"ssh"}->system("sh -c 'java -version 2>&1' | grep -q HotSpot ; echo $?") or
 		print "@".$node->{"alias"}."25\n";
+
+		$node->{"ssh"}->system("javac -version 2>&1 | xargs echo "."@".$node->{"alias"}."0") or
+		print "@".$node->{"alias"}."26\n";
+
+		if ($node->{"alias"} eq "S")
+		{
+			$node->{"ssh"}->system("which 7za || exit 1 && exit 0") or
+			print "@".$node->{"alias"}."27\n";
+		}
 	}
 }
 elsif ($cmd eq "show-cfg")
