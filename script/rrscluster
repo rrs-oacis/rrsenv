@@ -4,15 +4,16 @@ use Net::OpenSSH; # cpan -i Net::OpenSSH
 use Getopt::Long qw(GetOptionsFromArray :config posix_default no_ignore_case gnu_compat);
 use strict;
 use warnings;
+use threads;
 use Data::Dumper;
 
 my $RRSDIR = "/var/tmp/robocup";
 
-my @nodelist = (
-	{"name" => "server"},
-	{"name" => "ambulance"},
-	{"name" => "fire"},
-	{"name" => "police"});
+my $nodelist = {
+	"S" => {"name" => "server"},
+	"A" => {"name" => "ambulance"},
+	"F" => {"name" => "fire"},
+	"P" => {"name" => "police"}};
 
 my $argc = @ARGV;
 if ($argc < 1)
@@ -39,35 +40,13 @@ elsif ($cmd eq "setup")
 }
 elsif ($cmd eq "check")
 {
-	connect_hosts();
-
-	foreach my $node (@nodelist)
+	while (my ($key, $node) = each(%$nodelist))
 	{
-		$node->{"ssh"}->system("test 0") or
-		print "@".$node->{"alias"}."21\n";
-
-		my $workdir = $RRSDIR."/".$node->{"alias"};
-
-		$node->{"ssh"}->system("test -d ".$workdir) or
-		print "@".$node->{"alias"}."22\n";
-
-		$node->{"ssh"}->system("test -r ".$workdir." -a -w ".$workdir." -a -x ".$workdir) or
-		print "@".$node->{"alias"}."23\n";
-
-		$node->{"ssh"}->system("sh -c 'export DISPLAY=:0.0; xhost || echo disabled' | grep -q disabled") or
-		print "@".$node->{"alias"}."24\n";
-
-		$node->{"ssh"}->system("sh -c 'java -version 2>&1' | grep -q HotSpot ; echo $?") or
-		print "@".$node->{"alias"}."25\n";
-
-		$node->{"ssh"}->system("sh -c 'javac -version 2>&1' | xargs echo "."@".$node->{"alias"}."0") or
-		print "@".$node->{"alias"}."26\n";
-
-		if ($node->{"alias"} eq "S")
-		{
-			$node->{"ssh"}->system("which 7za || exit 1 && exit 0") or
-			print "@".$node->{"alias"}."27\n";
-		}
+		$node->{"thread"} = threads->new(\&check_proc, $node->{"alias"});
+	}
+	while (my ($key, $node) = each(%$nodelist))
+	{
+		$node->{"thread"}->join;
 	}
 }
 elsif ($cmd eq "show-cfg")
@@ -78,7 +57,7 @@ elsif ($cmd eq "show-cfg")
 elsif ($cmd eq "cfg-template")
 {
 	my $username = $ENV{LOGNAME} || $ENV{USER} || getpwuid($<);
-	foreach my $node (@nodelist)
+	while (my ($key, $node) = each(%$nodelist))
 	{
 		$cfg->{$node->{"name"}} = $username.'@localhost';
 	}
@@ -156,7 +135,7 @@ sub load_cfg
 	if (-e $cfg_file)
 	{
 		$cfg = do $cfg_file or die "$!$@";
-		foreach my $node (@nodelist)
+		while (my ($key, $node) = each(%$nodelist))
 		{
 			$node->{"host"} = $cfg->{$node->{"name"}};
 			$node->{"alias"} = uc(substr($node->{"name"}, 0, 1));
@@ -176,9 +155,27 @@ sub load_cfg
 	}
 }
 
+sub get_connect
+{
+	my ($alias) = @_;
+
+	$ssh = Net::OpenSSH->new(
+		%$nodelist{$alias}->{"host"},
+		batch_mode => 1,
+		master_opts => [ -o => "StrictHostKeyChecking=no"]);
+	$ssh->error and print "@".$alias."20\n";
+
+	if ($verbose)
+	{
+		print "[SSH] ".%$nodelist{$alias}->{"name"}." : ".$ssh->error."\n";
+	}
+
+	return $ssh;
+}
+
 sub connect_hosts
 {
-	foreach my $node (@nodelist)
+	while (my ($key, $node) = each(%$nodelist))
 	{
 		$node->{"ssh"} = Net::OpenSSH->new(
 			$node->{"host"},
@@ -193,9 +190,42 @@ sub connect_hosts
 	}
 }
 
+sub check_proc
+{
+	my ($alias) = @_;
+
+	my $ssh = &get_connect($alias);
+
+	$ssh->system("test 0") or
+	print "@".$alias."21\n";
+
+	my $workdir = $RRSDIR."/".$alias;
+
+	$ssh->system("test -d ".$workdir) or
+	print "@".$alias."22\n";
+
+	$ssh->system("test -r ".$workdir." -a -w ".$workdir." -a -x ".$workdir) or
+	print "@".$alias."23\n";
+
+	$ssh->system("sh -c 'export DISPLAY=:0.0; xhost || echo disabled' | grep -q disabled") or
+	print "@".$alias."24\n";
+
+	$ssh->system("sh -c 'java -version 2>&1' | grep -q HotSpot ; echo $?") or
+	print "@".$alias."25\n";
+
+	$ssh->system("sh -c 'javac -version 2>&1' | xargs echo "."@".$alias."0") or
+	print "@".$alias."26\n";
+
+	if ($alias eq "S")
+	{
+		$ssh->system("which 7za || exit 1 && exit 0") or
+		print "@".$alias."27\n";
+	}
+}
+
 sub server_proc
 {
-	$nodelist[0]->{"ssh"}->system("ls");
+	%$nodelist{"S"}->{"ssh"}->system("ls");
 }
 
 sub client_proc
