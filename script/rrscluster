@@ -1,12 +1,15 @@
 #!/usr/bin/perl
 #
-use Net::OpenSSH; # cpan -i Net::OpenSSH
+use Net::OpenSSH; # cpan -i Net::OpenSSH; cpan -i IO::Pty
 use Getopt::Long qw(GetOptionsFromArray :config posix_default no_ignore_case gnu_compat);
+use File::Basename;
+use Cwd 'realpath';
 use strict;
 use warnings;
 use threads;
 use Data::Dumper;
 
+my $SCRIPTDIR = realpath(dirname($0));
 my $RRSDIR = "/var/tmp/robocup";
 
 my $nodelist = {
@@ -23,8 +26,11 @@ if ($argc < 1)
 }
 
 my ($cmd, @opts) = @ARGV;
-my ($verbose);
-GetOptionsFromArray(\@opts, "verbose|v" => \$verbose) or exit(10);
+my ($_verbose, $_password);
+GetOptionsFromArray(\@opts,
+	"verbose|v" => \$_verbose,
+	"password|p=s" => \$_password
+) or exit(10);
 
 my $cfg = {};
 my $cfg_file = './rrscluster.cfg';
@@ -37,6 +43,14 @@ if ($cmd eq "set")
 }
 elsif ($cmd eq "setup")
 {
+	while (my ($key, $node) = each(%$nodelist))
+	{
+		$node->{"thread"} = threads->new(\&setup_proc, $node->{"alias"});
+	}
+	while (my ($key, $node) = each(%$nodelist))
+	{
+		$node->{"thread"}->join;
+	}
 }
 elsif ($cmd eq "check")
 {
@@ -140,7 +154,7 @@ sub load_cfg
 			$node->{"host"} = $cfg->{$node->{"name"}};
 			$node->{"alias"} = uc(substr($node->{"name"}, 0, 1));
 
-			if ($verbose)
+			if ($_verbose)
 			{
 				print "[CONFIG] ".$node->{"name"}." ---> ".$node->{"host"}."\n";
 			}
@@ -157,15 +171,27 @@ sub load_cfg
 
 sub get_connect
 {
-	my ($alias) = @_;
+	my ($alias, $pass) = @_;
 
-	$ssh = Net::OpenSSH->new(
-		%$nodelist{$alias}->{"host"},
-		batch_mode => 1,
-		master_opts => [ -o => "StrictHostKeyChecking=no"]);
-	$ssh->error and print "@".$alias."20\n";
+	if (!defined($pass))
+	{
+		$ssh = Net::OpenSSH->new(
+			%$nodelist{$alias}->{"host"},
+			batch_mode => 1,
+			master_opts => [ -o => "StrictHostKeyChecking=no"]);
+		$ssh->error and print "@".$alias."20\n";
+	}
+	else
+	{
+		$ssh = Net::OpenSSH->new(
+			%$nodelist{$alias}->{"host"},
+			password => $pass,
+			batch_mode => 1,
+			master_opts => [ -o => "StrictHostKeyChecking=no"]);
+		$ssh->error and print "@".$alias."10\n";
+	}
 
-	if ($verbose)
+	if ($_verbose)
 	{
 		print "[SSH] ".%$nodelist{$alias}->{"name"}." : ".$ssh->error."\n";
 	}
@@ -183,23 +209,59 @@ sub connect_hosts
 			master_opts => [ -o => "StrictHostKeyChecking=no"]);
 		$node->{"ssh"}->error and print "@".$node->{"alias"}."20\n";
 
-		if ($verbose)
+		if ($_verbose)
 		{
 			print "[SSH] ".$node->{"name"}." : ".$node->{"ssh"}->error."\n";
 		}
 	}
 }
 
+sub setup_proc
+{
+	my ($alias) = @_;
+	my $workdir = $RRSDIR."/".$alias;
+
+	my $ssh = &get_connect($alias);
+	{
+		my $ssh4pkey = &get_connect($alias, $_password);
+		if (! $ssh4pkey->check_master) { return; }
+		$ssh4pkey->system("mkdir -p ~/.ssh ; chmod -R 700 ~/.ssh");
+		open(PKEY, "< ".$ENV{"HOME"}."/.ssh/id_rsa.pub") or die("error :$!");
+		my ($rin, $pid) = $ssh4pkey->pipe_in("cat >>~/.ssh/authorized_keys") or
+		die "pipe_in method failed: " . $ssh->error;
+		while (my $line = <PKEY>)
+		{
+			chomp($line);
+			print $rin "$line\n";
+		}
+		close $rin;
+		$ssh4pkey->system('awk \'! a[$0]++\' ~/.ssh/authorized_keys > ~/.ssh/authorized_keys.rrsoacis ; mv ~/.ssh/authorized_keys.rrsoacis ~/.ssh/authorized_keys');
+		$ssh4pkey->disconnect();
+
+		$ssh = &get_connect($alias);
+		if (! $ssh->check_master) { return; }
+	}
+
+	$ssh->system("test -d ".$workdir) or
+	$ssh->system("mkdir -p ".$workdir." ; chmod -R 777 ".$RRSDIR);
+
+	if ($alias eq "S")
+	{
+		$ssh->system("test -d ".$workdir."/roborescue") or
+		$ssh->scp_put({recursive => 1, quiet => 1}, $SCRIPTDIR."/../roborescue", $workdir."/roborescue");
+	}
+}
+
 sub check_proc
 {
 	my ($alias) = @_;
+	my $workdir = $RRSDIR."/".$alias;
 
 	my $ssh = &get_connect($alias);
+	if (! $ssh->check_master) { return; }
 
 	$ssh->system("test 0") or
 	print "@".$alias."21\n";
-
-	my $workdir = $RRSDIR."/".$alias;
 
 	$ssh->system("test -d ".$workdir) or
 	print "@".$alias."22\n";
@@ -210,7 +272,7 @@ sub check_proc
 	$ssh->system("sh -c 'export DISPLAY=:0.0; xhost || echo disabled' | grep -q disabled") or
 	print "@".$alias."24\n";
 
-	$ssh->system("sh -c 'java -version 2>&1' | grep -q HotSpot ; echo $?") or
+	$ssh->system("sh -c 'java -version 2>&1' | grep -q HotSpot") or
 	print "@".$alias."25\n";
 
 	$ssh->system("sh -c 'javac -version 2>&1' | xargs echo "."@".$alias."0") or
