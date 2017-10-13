@@ -9,14 +9,14 @@ DATECODE=`date +%y%m%d`
 cd `dirname $0`
 
 function serverProc {
-    ssh $1 sh -c "'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; cd /var/tmp/robocup/${2}/roborescue/boot; ./start-precompute.sh -m ../../MAP/${MAP}/map -c ../../MAP/${MAP}/config'" >${OACIS_WORKDIR}/precompute-server.log &
+    ssh $1 sh -c "'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; cd /var/tmp/robocup/${2}/roborescue/boot; ./start-precompute.sh -m ../../MAP/${MAP}/map -c ../../MAP/${MAP}/config'" >${OACIS_WORKDIR}/precompute-server.log &
     sleep 10
 }
 
 function clientProc {
     rm /tmp/robocup-exitcode${5}.tmp
     SERVER_IP=`echo ${SERVER_SS}|sed -e 's/^.*@//'`
-    sh -c "ssh $4 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; cd /var/tmp/robocup/${5}/AGENT/${AGENT}; bash ./precompute.sh $1 0 $2 0 $3 0 ${SERVER_IP}' ; echo $? > /tmp/robocup-exitcode${5}.tmp" >${OACIS_WORKDIR}/precompute-agent${5}.log &
+    sh -c "ssh $4 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; cd /var/tmp/robocup/${5}/AGENT/${AGENT}; bash ./precompute.sh $1 0 $2 0 $3 0 ${SERVER_IP}' ; echo $? > /tmp/robocup-exitcode${5}.tmp" >${OACIS_WORKDIR}/precompute-agent${5}.log &
 }
 
 sh ./killjava.sh
