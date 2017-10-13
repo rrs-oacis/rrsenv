@@ -10,7 +10,7 @@ DATECODE=`date +%y%m%d`
 
 function serverProc {
     ssh $1 sh -c "'cat /tmp/.X100-lock | sed -e \"s/ //g\" | xargs kill'" >/dev/null 2>&1
-    ssh $1 sh -c "'export LC_ALL=en_US.UTF-8; export DISPLAY=:0; cd /var/tmp/robocup/${2}/roborescue/boot; ./start-comprun.sh -m ../../MAP/${MAP}/map -c ../../MAP/${MAP}/config -t ${AAGENT}'" >${OACIS_WORKDIR}/server.log
+    ssh $1 sh -c "'export LC_ALL=en_US.UTF-8; export DISPLAY=:0; export AWT_FORCE_HEADFUL=true; cd /var/tmp/robocup/${2}/roborescue/boot; ./start-comprun.sh -m ../../MAP/${MAP}/map -c ../../MAP/${MAP}/config -t ${AAGENT}'" >${OACIS_WORKDIR}/server.log
     sleep 3
 
     ssh $1 sh -c "'cd /var/tmp/robocup/${2}/roborescue/boot; 7za a -m0=lzma2 ../../LOG/${DATECODE}-${MAP}/${DATECODE}-${MAP}-${AAGENT}.7z logs'"
