@@ -13,7 +13,16 @@ function serverProc {
     ssh $1 sh -c "'export LC_ALL=en_US.UTF-8; export DISPLAY=:0; export AWT_FORCE_HEADFUL=true; cd /var/tmp/robocup/${2}/roborescue/boot; ./start-comprun.sh -m ../../MAP/${MAP}/map -c ../../MAP/${MAP}/config -t ${AAGENT}'" >${OACIS_WORKDIR}/server.log
     sleep 3
 
-    ssh $1 sh -c "'cd /var/tmp/robocup/${2}/roborescue/boot; 7za a -m0=lzma2 ../../LOG/${DATECODE}-${MAP}/${DATECODE}-${MAP}-${AAGENT}.7z logs'"
+    if [ $ARCHIVER = "7zip" ]; then
+        ssh $1 sh -c "'cd /var/tmp/robocup/${2}/roborescue/boot; 7za a -m0=lzma2 ../../LOG/${DATECODE}-${MAP}/${DATECODE}-${MAP}-${AAGENT}.7z logs'"
+    else
+        if [ $ARCHIVER = "zip" ]; then
+            ssh $1 sh -c "'cd /var/tmp/robocup/${2}/roborescue/boot; zip -r ../../LOG/${DATECODE}-${MAP}/${DATECODE}-${MAP}-${AAGENT}.zip logs'"
+        else
+            ssh $1 sh -c "'cd /var/tmp/robocup/${2}/roborescue/boot; tar zcf ../../LOG/${DATECODE}-${MAP}/${DATECODE}-${MAP}-${AAGENT}.tar.gz logs'"
+        fi
+    fi
+
     scp $1:"/var/tmp/robocup/${2}/LOG/${DATECODE}-${MAP}/${DATECODE}-${MAP}-${AAGENT}.7z" ${OACIS_WORKDIR}/simulation_log.7z
     ssh $1 sh -c "'cd /var/tmp/robocup/${2}/roborescue/boot; echo "${DATECODE},${MAP},${FAGENT},${PAGENT},${AAGENT},"; sh ./print-lastscore.sh'" | tee ${OACIS_WORKDIR}/score.txt
     ssh $1 sh -c "'export LC_ALL=en_US.UTF-8; export DISPLAY=:0; rm -rf /tmp/img_log; mkdir /tmp/img_log; cd /var/tmp/robocup/${2}/roborescue/boot; bash ./logextract.sh ./logs/rescue.log /tmp/img_log'"

@@ -75,6 +75,7 @@ elsif ($cmd eq "cfg-template")
 	{
 		$cfg->{$node->{"name"}} = $username.'@localhost';
 	}
+	$cfg->{"archiver"} = "gzip";
 
 	save_cfg();
 }
@@ -154,9 +155,18 @@ sub load_cfg
 			$node->{"host"} = $cfg->{$node->{"name"}};
 			$node->{"alias"} = uc(substr($node->{"name"}, 0, 1));
 
+			if ($node->{"name"} eq "server")
+			{
+				$node->{"archiver"} = $cfg->{"archiver"};
+			}
+
 			if ($_verbose)
 			{
 				print "[CONFIG] ".$node->{"name"}." ---> ".$node->{"host"}."\n";
+				if ($node->{"name"} eq "server")
+				{
+					print "[CONFIG] server->archiver ---> ".$node->{"archiver"}."\n";
+				}
 			}
 		}
 
@@ -280,7 +290,11 @@ sub check_proc
 
 	if ($alias eq "S")
 	{
-		$ssh->system("which 7za || exit 1 && exit 0") or
+		my $archive_cmd = "@";
+		if ( %$nodelist{$alias}->{"archiver"} eq "gzip") { $archive_cmd = "gzip" }
+		elsif ( %$nodelist{$alias}->{"archiver"} eq "7zip") { $archive_cmd = "7za" }
+		elsif ( %$nodelist{$alias}->{"archiver"} eq "zip") { $archive_cmd = "zip" }
+		$ssh->system("which ".$archive_cmd." || exit 1 && exit 0") or
 		print "@".$alias."27\n";
 	}
 }
