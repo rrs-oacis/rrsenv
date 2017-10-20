@@ -231,6 +231,8 @@ sub setup_proc
 	my ($alias) = @_;
 	my $workdir = $RRSDIR."/".$alias;
 
+	system("rm -f ~/.ssh/known_hosts");
+
 	my $ssh = &get_connect($alias);
 	{
 		my $ssh4pkey = &get_connect($alias, $_password);
