@@ -2,7 +2,7 @@
 
 . `dirname ${OACIS_WORKDIR}`/config.cfg
 
-function serverProc {
+function serverProc () {
     ssh $1 killall java
     ssh $1 killall start-precompute.sh
     ssh $1 killall start-comprun.sh
@@ -10,7 +10,7 @@ function serverProc {
     ssh $1 killall noGUI-start-comprun.sh
 }
 
-function clientProc {
+function clientProc () {
     ssh $1 killall java
 }
 
