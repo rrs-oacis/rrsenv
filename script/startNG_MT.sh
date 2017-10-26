@@ -8,7 +8,7 @@ PAGENT=$3
 AAGENT=$4
 DATECODE=`date +%y%m%d`
 
-function serverProc {
+function serverProc () {
     ssh $1 sh -c "'cat /tmp/.X100-lock | sed -e \"s/ //g\" | xargs kill'" >/dev/null 2>&1
     ssh $1 sh -c "'export LC_ALL=en_US.UTF-8; export DISPLAY=:0; export AWT_FORCE_HEADFUL=true; cd /var/tmp/robocup/${2}/roborescue/boot; ./start-comprun.sh -m ../../MAP/${MAP}/map -c ../../MAP/${MAP}/config -t ${AAGENT}'" >${OACIS_WORKDIR}/server.log
     sleep 3
@@ -34,7 +34,7 @@ function serverProc {
     sh ./countimage.sh ${OACIS_WORKDIR}/img_log | tee ${OACIS_WORKDIR}/img_log/count.txt
 }
 
-function clientProc {
+function clientProc () {
     ssh $4 sh -c "\"sleep 10 ; cd /var/tmp/robocup/${5}/AGENT/${6} ; bash ./start.sh $1 $1 $2 $2 $3 $3 `echo ${SERVER_SS}|sed -e 's/^.*@//'`\"" >${OACIS_WORKDIR}/agent${5}.log &
 }
 
