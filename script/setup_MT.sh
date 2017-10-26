@@ -12,7 +12,7 @@ EXITCODE=0
 cd `dirname $0`
 
 
-function serverProc {
+function serverProc () {
     ssh $1 mkdir -p /var/tmp/robocup/$2/MAP
     ssh $1 rm -rf /var/tmp/robocup/$2/MAP/${MAP}
     scp -r ../MAP/${MAP} ${1}:/var/tmp/robocup/$2/MAP/
@@ -22,7 +22,7 @@ function serverProc {
     fi
 }
 
-function clientProc {
+function clientProc () {
     ssh $1 mkdir -p /var/tmp/robocup/$2/AGENT
     ssh $1 rm -rf /var/tmp/robocup/$2/AGENT/$3
     scp -r ../AGENT/$3 ${1}:/var/tmp/robocup/$2/AGENT/
