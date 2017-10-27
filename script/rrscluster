@@ -231,7 +231,10 @@ sub setup_proc
 	my ($alias) = @_;
 	my $workdir = $RRSDIR."/".$alias;
 
-	system("rm -f ~/.ssh/known_hosts");
+	my $hostname = %$nodelist{$alias}->{"host"};
+	$hostname =~ s/^.*@//;
+	system("ssh-keygen -R ".$hostname);
+	system("ssh-keyscan ".$hostname." >>~/.ssh/known_hosts");
 
 	my $ssh = &get_connect($alias);
 	{
