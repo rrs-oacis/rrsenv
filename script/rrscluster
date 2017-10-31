@@ -60,7 +60,9 @@ if ($_agent ne "")
 }
 
 if ($_logdir =~ /^(?!.*\/$).*$/)
-{}
+{
+	$_logdir = $_logdir."/";
+}
 
 my $cfg = {};
 my $cfg_file = './rrscluster.cfg';
@@ -577,7 +579,7 @@ sub start_server_closing_proc
 #    ssh $1 sh -c "'cd /var/tmp/robocup/${2}/roborescue/boot; tar zcvf ../../LOG/${DATECODE}-${MAP}/${DATECODE}-${MAP}-${FAGENT}-${PAGENT}-${AAGENT}.tar.gz logs'"
 #    ssh $1 sh -c "'cd /var/tmp/robocup/${2}/roborescue/boot; echo "${DATECODE},${MAP},${FAGENT},${PAGENT},${AAGENT},"; sh ./print-lastscore.sh'" | tee ${OACIS_WORKDIR}/score.txt
 	$ssh->system("sh -c 'cd /var/tmp/robocup/${alias}/roborescue/boot; tar zcvf ../../LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".tar.gz logs'");
-		$ssh->scp_get({recursive => 1, quiet => 1}, "/var/tmp/robocup/S/LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".tar.gz", "simulation_log.tar.gz");
+	$ssh->scp_get({recursive => 1, quiet => 1}, "/var/tmp/robocup/S/LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".tar.gz", $_logdir."simulation_log.tar.gz");
 	my ($rout, $pid2) = $ssh->pipe_out("sh -c 'cd /var/tmp/robocup/${alias}/roborescue/boot; sh ./print-lastscore.sh'") or
 	die "pipe_out method failed: " . $ssh->error;
 	while (<$rout>) { print }
