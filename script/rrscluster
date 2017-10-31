@@ -1,12 +1,14 @@
 #!/usr/bin/perl
 #
 use Net::OpenSSH; # cpan -i Net::OpenSSH; cpan -i IO::Pty
+use JSON; # cpan -i JSON;
 use Getopt::Long qw(GetOptionsFromArray :config posix_default no_ignore_case gnu_compat);
 use File::Basename;
 use Cwd 'realpath';
 use strict;
 use warnings;
 use threads;
+use threads::shared;
 use Data::Dumper;
 
 my $SCRIPTDIR = realpath(dirname($0));
@@ -18,6 +20,16 @@ my $nodelist = {
 	"F" => {"name" => "fire"},
 	"P" => {"name" => "police"}};
 
+my $_agent = "";
+%$nodelist{"A"}->{"agent"} = "";
+%$nodelist{"F"}->{"agent"} = "";
+%$nodelist{"P"}->{"agent"} = "";
+my $_logdir = "";
+my $_map = "";
+my $_is_mod = 0;
+my $_is_dev = 0;
+my $_use_precompute = 0;
+
 my $argc = @ARGV;
 if ($argc < 1)
 {
@@ -26,23 +38,61 @@ if ($argc < 1)
 }
 
 my ($cmd, @opts) = @ARGV;
-my ($_verbose, $_password);
+my ($_verbose, $_password, $_input);
 GetOptionsFromArray(\@opts,
 	"verbose|v" => \$_verbose,
-	"password|p=s" => \$_password
+	"input|i=s" => \$_input,
+	"password|p=s" => \$_password,
+	"logdir|l=s" => \$_logdir,
+	"precompute|pre" => \$_use_precompute,
+	"map|m=s" => \$_map,
+	"agent_a|A=s" => \%$nodelist{"A"}->{"agent"},
+	"agent_f|F=s" => \%$nodelist{"F"}->{"agent"},
+	"agent_p|P=s" => \%$nodelist{"P"}->{"agent"},
+	"agent|a=s" => \$_agent
 ) or exit(10);
+
+if ($_agent ne "")
+{
+	%$nodelist{"A"}->{"agent"} = $_agent;
+	%$nodelist{"F"}->{"agent"} = $_agent;
+	%$nodelist{"P"}->{"agent"} = $_agent;
+}
+
+if ($_logdir =~ /^(?!.*\/$).*$/)
+{}
 
 my $cfg = {};
 my $cfg_file = './rrscluster.cfg';
 load_cfg();
 
 
-
-if ($cmd eq "set")
+if ($cmd eq "run")
 {
+	if (%$nodelist{"A"}->{"agent"} eq ""
+	|| %$nodelist{"F"}->{"agent"} eq ""
+	|| %$nodelist{"P"}->{"agent"} eq ""
+	|| $_map eq "") { exit 1; }
+
+	connect_hosts();
+	killall();
+	preparate();
+	if ($_use_precompute)
+	{
+		precompute();
+	}
+	start();
+	disconnect_hosts();
+}
+elsif ($cmd eq "kill")
+{
+	connect_hosts();
+	killall();
+	disconnect_hosts();
 }
 elsif ($cmd eq "setup")
 {
+	connect_hosts();
 	while (my ($key, $node) = each(%$nodelist))
 	{
 		$node->{"thread"} = threads->new(\&setup_proc, $node->{"alias"});
@@ -51,9 +101,11 @@ elsif ($cmd eq "setup")
 	{
 		$node->{"thread"}->join;
 	}
+	disconnect_hosts();
 }
 elsif ($cmd eq "check")
 {
+	connect_hosts();
 	while (my ($key, $node) = each(%$nodelist))
 	{
 		$node->{"thread"} = threads->new(\&check_proc, $node->{"alias"});
@@ -62,6 +114,7 @@ elsif ($cmd eq "check")
 	{
 		$node->{"thread"}->join;
 	}
+	disconnect_hosts();
 }
 elsif ($cmd eq "show-cfg")
 {
@@ -226,6 +279,14 @@ sub connect_hosts
 	}
 }
 
+sub disconnect_hosts
+{
+	while (my ($key, $node) = each(%$nodelist))
+	{
+		$node->{"ssh"}->disconnect();
+	}
+}
+
 sub setup_proc
 {
 	my ($alias) = @_;
@@ -253,6 +314,7 @@ sub setup_proc
 		$ssh4pkey->system('awk \'! a[$0]++\' ~/.ssh/authorized_keys > ~/.ssh/authorized_keys.rrsoacis ; mv ~/.ssh/authorized_keys.rrsoacis ~/.ssh/authorized_keys');
 		$ssh4pkey->disconnect();
 
+		$ssh->disconnect();
 		$ssh = &get_connect($alias);
 		if (! $ssh->check_master) { return; }
 	}
@@ -264,7 +326,9 @@ sub setup_proc
 	{
 		$ssh->system("test -d ".$workdir."/roborescue") or
 		$ssh->scp_put({recursive => 1, quiet => 1}, $SCRIPTDIR."/../roborescue", $workdir."/roborescue");
+		$ssh->system("cd /var/tmp/robocup/S/roborescue; ./apache-ant-*/bin/ant clean-all clean oldsims compile jars");
 	}
+	$ssh->disconnect();
 }
 
 sub check_proc
@@ -272,8 +336,7 @@ sub check_proc
 	my ($alias) = @_;
 	my $workdir = $RRSDIR."/".$alias;
 
-	my $ssh = &get_connect($alias);
-	if (! $ssh->check_master) { return; }
+	my $ssh = %$nodelist{$alias}->{"ssh"};
 
 	$ssh->system("test 0") or
 	print "@".$alias."21\n";
@@ -283,7 +346,6 @@ sub check_proc
 
 	$ssh->system("test -r ".$workdir." -a -w ".$workdir." -a -x ".$workdir) or
 	print "@".$alias."23\n";
-
 	$ssh->system("sh -c 'export DISPLAY=:0.0; xhost || echo disabled' | grep -q disabled") or
 	print "@".$alias."24\n";
 
@@ -304,12 +366,242 @@ sub check_proc
 	}
 }
 
-sub server_proc
+sub killall
 {
-	%$nodelist{"S"}->{"ssh"}->system("ls");
+	print "[START] Kill all exist simulation processes\n";
+	while (my ($key, $node) = each(%$nodelist))
+	{
+		$node->{"thread_ka"} = threads->new(\&killall_proc, $node->{"alias"});
+	}
+	while (my ($key, $node) = each(%$nodelist))
+	{
+		$node->{"thread_ka"}->join;
+	}
+	print "[FINISH] All simulation processes were killed\n";
 }
 
-sub client_proc
+sub killall_proc
 {
+	my ($alias) = @_;
+
+	my $ssh = %$nodelist{$alias}->{"ssh"};
+
+	$ssh->system("killall java");
+
+	if ($alias eq "S")
+	{
+		$ssh->system("killall noGUI-start-precompute.sh");
+		$ssh->system("killall noGUI-start-comprun.sh");
+		$ssh->system("killall noXterm-start-precompute.sh");
+		$ssh->system("killall noXterm-start-comprun.sh");
+		$ssh->system("killall start-precompute.sh");
+		$ssh->system("killall start-comprun.sh");
+	}
 }
 
+sub preparate
+{
+	while (my ($key, $node) = each(%$nodelist))
+	{
+		if ($node->{"alias"} eq "S")
+		{ $node->{"thread"} = threads->new(\&preparate_server_proc, $node->{"alias"}); }
+		else
+		{ $node->{"thread"} = threads->new(\&preparate_agent_proc, $node->{"alias"}); }
+	}
+	while (my ($key, $node) = each(%$nodelist))
+	{
+		$node->{"thread"}->join;
+	}
+}
+
+sub preparate_server_proc
+{
+	my ($alias) = @_;
+
+	my $ssh = %$nodelist{$alias}->{"ssh"};
+
+	print $alias.": ".$_map."\n";
+
+	my ($mday,$mon,$year) = (localtime(time))[3..5];
+	$year += 1900 - 2000;
+	$mon += 1;
+	my $datecode = sprintf("%02d%02d%02d", $year, $mon, $mday);
+
+	print $alias.": [START] Map file uploading will start\n";
+	$ssh->system("mkdir -p /var/tmp/robocup/$alias/MAP");
+	$ssh->system("rm -rf /var/tmp/robocup/$alias/AGENT/$_map");
+	$ssh->scp_put({recursive => 1, quiet => 1}, "../../MAP/$_map", "/var/tmp/robocup/$alias/MAP/");
+	print $alias.": [FINISH] Map file has uploaded\n";
+	$ssh->system("mkdir -p /var/tmp/robocup/$alias/LOG/${datecode}-${_map}");
+	$ssh->system("test ! -e /var/tmp/robocup/$alias/LOG/${datecode}-${_map}/${datecode}-${_map}.tar.gz")
+		and $ssh->system("sh -c 'cd /var/tmp/robocup/$alias/MAP; tar cvfz /var/tmp/robocup/$alias/LOG/${datecode}-${_map}/${datecode}-${_map}.tar.gz ${_map}'");
+}
+
+sub preparate_agent_proc
+{
+	my ($alias) = @_;
+
+	my $ssh = %$nodelist{$alias}->{"ssh"};
+
+	my $agent = %$nodelist{$alias}->{"agent"};
+
+	print $alias.": ".%$nodelist{$alias}->{"agent"}."\n";
+
+	print $alias.": [START] Agent file uploading will start\n";
+	$ssh->system("mkdir -p /var/tmp/robocup/$alias/AGENT");
+	$ssh->system("rm -rf /var/tmp/robocup/$alias/AGENT/$agent");
+	$ssh->scp_put({recursive => 1, quiet => 1}, "../../AGENT/$agent", "/var/tmp/robocup/$alias/AGENT/");
+	print $alias.": [FINISH] Agent file has uploaded\n";
+	print $alias.": [START] Agent compiling will start\n";
+	$ssh->system("chmod a+x /var/tmp/robocup/$alias/AGENT/$agent/*.sh");
+	$ssh->system("sh -c \"cd /var/tmp/robocup/$alias/AGENT/$agent ; bash ./compile.sh\"");
+	print $alias.": [FINISH] Agent has compiled\n";
+}
+
+sub precompute
+{
+	precompute_server_proc();
+
+	while (my ($key, $node) = each(%$nodelist))
+	{
+		if ($node->{"alias"} ne "S")
+		{ $node->{"thread"} = threads->new(\&precompute_agent_proc, $node->{"alias"}); }
+	}
+	while (my ($key, $node) = each(%$nodelist))
+	{
+		if ($node->{"alias"} ne "S")
+		{ $node->{"thread"}->join; }
+	}
+	killall();
+}
+
+my $start_precompute_proc_rout;
+sub precompute_server_proc
+{
+	my $alias = "S";
+
+	my $ssh = %$nodelist{$alias}->{"ssh"};
+
+	print $alias.": [START] Simulation server will start for precompute\n";
+	my $pid;
+	($start_precompute_proc_rout, $pid) = $ssh->pipe_out("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; cd /var/tmp/robocup/${alias}/roborescue/boot; ./start-precompute.sh -m ../../MAP/${_map}/map -c ../../MAP/${_map}/config'") or
+	die "pipe_out method failed: " . $ssh->error;
+	while (<$start_precompute_proc_rout>)
+	{
+		if ($_ =~ /Start your agents/)
+		{
+			print $alias.": [FINISH] Simulation server has started\n";
+			return;
+		}
+	}
+}
+
+sub precompute_agent_proc
+{
+	my ($alias) = @_;
+
+	my $ssh = %$nodelist{$alias}->{"ssh"};
+
+	my $f = ($alias eq "F" ? 1 : 0);
+	my $p = ($alias eq "P" ? 1 : 0);
+	my $a = ($alias eq "A" ? 1 : 0);
+	my $server_hostname = %$nodelist{"S"}->{"host"};
+	$server_hostname =~ s/^.*@//;
+
+	my $agent = %$nodelist{$alias}->{"agent"};
+
+	print $alias.": ".%$nodelist{$alias}->{"agent"}."\n";
+
+	print $alias.": [START] Agent will start for precompute\n";
+	$ssh->system("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; cd /var/tmp/robocup/${alias}/AGENT/${agent}; timeout 120 bash ./precompute.sh $f 0 $p 0 $a 0 ${server_hostname} || echo TIMEOUT'");
+	print $alias.": [FINISH] Agent precomputation was ended\n";
+}
+
+sub start
+{
+	start_server_proc();
+
+	while (my ($key, $node) = each(%$nodelist))
+	{
+		if ($node->{"alias"} ne "S")
+		{ $node->{"thread"} = threads->new(\&start_agent_proc, $node->{"alias"}); }
+	}
+
+	start_server_closing_proc();
+
+	killall();
+
+	while (my ($key, $node) = each(%$nodelist))
+	{
+		if ($node->{"alias"} ne "S")
+		{ $node->{"thread"}->join(); }
+	}
+}
+
+my $start_server_proc_rout;
+sub start_server_proc
+{
+	my $alias = "S";
+
+	my $ssh = %$nodelist{$alias}->{"ssh"};
+
+	print $alias.": [START] Simulation server will start for full running\n";
+	my $pid;
+	($start_server_proc_rout, $pid) = $ssh->pipe_out("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; cd /var/tmp/robocup/${alias}/roborescue/boot; ./start-comprun.sh -m ../../MAP/${_map}/map -c ../../MAP/${_map}/config'") or
+	die "pipe_out method failed: " . $ssh->error;
+	while (<$start_server_proc_rout>)
+	{
+		if ($_ =~ /Start your agents/)
+		{
+			print $alias.": [FINISH] Simulation server has started\n";
+			return;
+		}
+	}
+}
+
+sub start_server_closing_proc
+{
+	my $alias = "S";
+
+	my ($mday,$mon,$year) = (localtime(time))[3..5];
+	$year += 1900 - 2000;
+	$mon += 1;
+	my $datecode = sprintf("%02d%02d%02d", $year, $mon, $mday);
+
+	my $ssh = %$nodelist{$alias}->{"ssh"};
+
+	while (<$start_server_proc_rout>) { }
+	close $start_server_proc_rout;
+
+	print $alias.": [START] Simulation log data will make\n";
+#    ssh $1 sh -c "'cd /var/tmp/robocup/${2}/roborescue/boot; tar zcvf ../../LOG/${DATECODE}-${MAP}/${DATECODE}-${MAP}-${FAGENT}-${PAGENT}-${AAGENT}.tar.gz logs'"
+#    ssh $1 sh -c "'cd /var/tmp/robocup/${2}/roborescue/boot; echo "${DATECODE},${MAP},${FAGENT},${PAGENT},${AAGENT},"; sh ./print-lastscore.sh'" | tee ${OACIS_WORKDIR}/score.txt
+	$ssh->system("sh -c 'cd /var/tmp/robocup/${alias}/roborescue/boot; tar zcvf ../../LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".tar.gz logs'");
+		$ssh->scp_get({recursive => 1, quiet => 1}, "/var/tmp/robocup/S/LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".tar.gz", "simulation_log.tar.gz");
+	my ($rout, $pid2) = $ssh->pipe_out("sh -c 'cd /var/tmp/robocup/${alias}/roborescue/boot; sh ./print-lastscore.sh'") or
+	die "pipe_out method failed: " . $ssh->error;
+	while (<$rout>) { print }
+	close $rout;
+	print $alias.": [FINISH] Simulation log data has make\n";
+}
+
+sub start_agent_proc
+{
+	my ($alias) = @_;
+
+	my $ssh = %$nodelist{$alias}->{"ssh"};
+
+	my $f = ($alias eq "F" ? -1 : 0);
+	my $p = ($alias eq "P" ? -1 : 0);
+	my $a = ($alias eq "A" ? -1 : 0);
+	my $server_hostname = %$nodelist{"S"}->{"host"};
+	$server_hostname =~ s/^.*@//;
+
+	my $agent = %$nodelist{$alias}->{"agent"};
+
+	print $alias.": ".%$nodelist{$alias}->{"agent"}."\n";
+
+	print $alias.": [START] Agent will start for full running\n";
+	$ssh->system("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; cd /var/tmp/robocup/${alias}/AGENT/${agent}; bash ./start.sh $f $f $p $p $a $a ${server_hostname}'");
+	print $alias.": [FINISH] Agent full running was ended\n";
+}
