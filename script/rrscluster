@@ -82,21 +82,19 @@ if ($_input ne "")
 	$_mod_data = "\n";
 	while (my ($key, $value) = each(%$json_input))
 	{
-		if ($key =~ /^MOD:/)
+		if ($key =~ /^MOD_/)
 		{
-			$key =~ s/^MOD://;
+			$key =~ s/^MOD_//;
 			$_mod_data .= $key." : ".$value."\n";
 		}
-		elsif ($key =~ /^DEV:/)
+		elsif ($key =~ /^DEV_/)
 		{
-			$key =~ s/^DEV://;
+			$key =~ s/^DEV_//;
 			$dev_data->{$key} = $value;
 		}
 	}
 
 	$_dev_data = encode_json($dev_data);
-
-	exit;
 }
 
 %$nodelist{"A"}->{"agent"} = ($_agentA ne "" ? $_agentA : "");
