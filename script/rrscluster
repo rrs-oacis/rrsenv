@@ -1,5 +1,6 @@
 #!/usr/bin/perl
 #
+BEGIN { $ENV{PERL_JSON_BACKEND} = 'JSON::PP' }
 use Net::OpenSSH; # cpan -i Net::OpenSSH; cpan -i IO::Pty
 use JSON; # cpan -i JSON;
 use Getopt::Long qw(GetOptionsFromArray :config posix_default no_ignore_case gnu_compat);
@@ -690,10 +691,10 @@ sub start_server_closing_proc
 	close(OUT);
 
 	open(OUT, ">$_logdir"."_output.json") or die "$!";
-	my $output_data = {};
-	$output_data->{"Score"} = 0 + &get_content($_logdir."extracts/final-score.txt");
-	print OUT &encode_json($output_data);
+	my $output_data->{"Score"} = 0 + &get_content($_logdir."extracts/final-score.txt");
+	print OUT encode_json($output_data);
 	close(OUT);
+
 	print $alias.": [FINISH] Simulation log data has make\n";
 }
 
