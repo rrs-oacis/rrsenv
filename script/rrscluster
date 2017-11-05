@@ -485,6 +485,9 @@ sub preparate_server_proc
 	$mon += 1;
 	my $datecode = sprintf("%02d%02d%02d", $year, $mon, $mday);
 
+	$ssh->system("rm -rf /var/tmp/robocup/$alias/tmp");
+	$ssh->system("mkdir -p /var/tmp/robocup/$alias/tmp");
+
 	print $alias.": [START] Map file uploading will start\n";
 	$ssh->system("mkdir -p /var/tmp/robocup/$alias/MAP");
 	$ssh->scp_put({recursive => 1, quiet => 1}, "../../MAP/$_map", "/var/tmp/robocup/$alias/MAP/");
@@ -503,6 +506,9 @@ sub preparate_agent_proc
 	my $agent = %$nodelist{$alias}->{"agent"};
 
 	print $alias.": ".%$nodelist{$alias}->{"agent"}."\n";
+
+	$ssh->system("rm -rf /var/tmp/robocup/$alias/tmp");
+	$ssh->system("mkdir -p /var/tmp/robocup/$alias/tmp");
 
 	print $alias.": [START] Agent file uploading will start\n";
 	$ssh->system("mkdir -p /var/tmp/robocup/$alias/AGENT");
@@ -675,7 +681,7 @@ sub start_server_closing_proc
 		$ssh->system("sh -c 'cd /var/tmp/robocup/${alias}/roborescue/boot; zip -r ../../LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".zip logs'");
 	}
 	$ssh->scp_get({recursive => 1, quiet => 1}, "/var/tmp/robocup/S/LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".".$archive_ext, $_logdir."simulation_log.".$archive_ext);
-	$ssh->system("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; cd /var/tmp/robocup/S/roborescue/boot; ./logextract.sh ./logs/rescue.log /var/tmp/robocup/S/tmp/extracts'");
+	$ssh->system("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; cd /var/tmp/robocup/S/roborescue/boot; mkdir -p /var/tmp/robocup/S/tmp/extracts; ./logextract.sh ./logs/rescue.log /var/tmp/robocup/S/tmp/extracts'");
 	$ssh->scp_get({recursive => 1, quiet => 1}, "/var/tmp/robocup/S/tmp/extracts", $_logdir."extracts");
 	open(OUT, ">$_logdir"."score.txt") or die "$!";
 	my ($rout, $pid) = $ssh->pipe_out("sh -c 'cd /var/tmp/robocup/${alias}/roborescue/boot; sh ./print-lastscore.sh'");
