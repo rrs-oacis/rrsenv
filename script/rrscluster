@@ -490,7 +490,7 @@ sub preparate_server_proc
 
 	print $alias.": [START] Map file uploading will start\n";
 	$ssh->system("mkdir -p /var/tmp/robocup/$alias/MAP");
-	$ssh->scp_put({recursive => 1, quiet => 1}, "../../MAP/$_map", "/var/tmp/robocup/$alias/MAP/");
+	$ssh->scp_put({recursive => 1, quiet => 1}, $SCRIPTDIR."/../MAP/$_map", "/var/tmp/robocup/$alias/MAP/");
 	print $alias.": [FINISH] Map file has uploaded\n";
 	$ssh->system("mkdir -p /var/tmp/robocup/$alias/LOG/${datecode}-${_map}");
 	$ssh->system("test ! -e /var/tmp/robocup/$alias/LOG/${datecode}-${_map}/${datecode}-${_map}.tar.gz")
@@ -513,7 +513,7 @@ sub preparate_agent_proc
 	print $alias.": [START] Agent file uploading will start\n";
 	$ssh->system("mkdir -p /var/tmp/robocup/$alias/AGENT");
 	$ssh->system("rm -rf /var/tmp/robocup/$alias/AGENT/$agent");
-	$ssh->scp_put({recursive => 1, quiet => 1}, "../../AGENT/$agent", "/var/tmp/robocup/$alias/AGENT/");
+	$ssh->scp_put({recursive => 1, quiet => 1}, $SCRIPTDIR."/../AGENT/$agent", "/var/tmp/robocup/$alias/AGENT/");
 	if ($_is_mod == 1)
 	{
 		$ssh->system("mkdir -p /var/tmp/robocup/$alias/AGENT/$agent/config");
@@ -627,7 +627,7 @@ sub start_server_proc
 
 	my $ssh = %$nodelist{$alias}->{"ssh"};
 
-	open(OUT, ">$_logdir"."server".$alias.".log") or die "$!";
+	open(OUT, ">$_logdir"."server.log") or die "$!";
 
 	print $alias.": [START] Simulation server will start for full running\n";
 	my $pid;
