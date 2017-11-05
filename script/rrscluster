@@ -692,7 +692,7 @@ sub start_server_closing_proc
 	open(OUT, ">$_logdir"."_output.json") or die "$!";
 	my $output_data = {};
 	$output_data->{"Score"} = 0 + &get_content($_logdir."extracts/final-score.txt");
-	print OUT encode_json($output_data);
+	print OUT &encode_json($output_data);
 	close(OUT);
 	print $alias.": [FINISH] Simulation log data has make\n";
 }
