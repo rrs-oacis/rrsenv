@@ -28,6 +28,7 @@ my $_agentP = "";
 %$nodelist{"A"}->{"agent"} = "";
 %$nodelist{"F"}->{"agent"} = "";
 %$nodelist{"P"}->{"agent"} = "";
+my $cfg_file = './rrscluster.cfg';
 my $_logdir = "";
 my $_map = "";
 my $_is_mod = 0;
@@ -51,6 +52,7 @@ GetOptionsFromArray(\@opts,
 	"verbose|v" => \$_verbose,
 	"input|i=s" => \$_input,
 	"password|p=s" => \$_password,
+	"config|c=s" => \$cfg_file,
 	"logdir|l=s" => \$_logdir,
 	"precompute|pre" => \$_use_precompute,
 	"ismod|mod" => \$_is_mod_o,
@@ -66,6 +68,11 @@ if ($_input ne "")
 {
 	my $json_input = decode_json(&get_content($_input));
 
+	if ($_verbose)
+	{
+		print "[INPUT JSON] ".&get_content($_input)."\n";
+	}
+
 	%$nodelist{"A"}->{"agent"} = $json_input->{"AGENT_A"};
 	%$nodelist{"F"}->{"agent"} = $json_input->{"AGENT_F"};
 	%$nodelist{"P"}->{"agent"} = $json_input->{"AGENT_P"};
@@ -74,9 +81,6 @@ if ($_input ne "")
 	{
 		$_map = $json_input->{"MAP"};
 	}
-
-	$_is_mod = $json_input->{"IS_MOD"};
-	$_is_dev = $json_input->{"IS_DEV"};
 
 	my $dev_data = {};
 	$_mod_data = "\n";
@@ -92,14 +96,26 @@ if ($_input ne "")
 			$key =~ s/^DEV_//;
 			$dev_data->{$key} = $value;
 		}
+		elsif ($key eq "USE_PREC")
+		{
+			$_use_precompute = ($value eq "1" || $value == 1 || lc($value) eq "true");
+		}
+		elsif ($key eq "IS_MOD")
+		{
+			$_is_mod = ($value eq "1" || $value == 1 || lc($value) eq "true");
+		}
+		elsif ($key eq "IS_DEV")
+		{
+			$_is_dev = ($value eq "1" || $value == 1 || lc($value) eq "true");
+		}
 	}
 
 	$_dev_data = encode_json($dev_data);
 }
 
-%$nodelist{"A"}->{"agent"} = ($_agentA ne "" ? $_agentA : "");
-%$nodelist{"F"}->{"agent"} = ($_agentF ne "" ? $_agentF : "");
-%$nodelist{"P"}->{"agent"} = ($_agentP ne "" ? $_agentP : "");
+%$nodelist{"A"}->{"agent"} = ($_agentA ne "" ? $_agentA : %$nodelist{"A"}->{"agent"});
+%$nodelist{"F"}->{"agent"} = ($_agentF ne "" ? $_agentF : %$nodelist{"F"}->{"agent"});
+%$nodelist{"P"}->{"agent"} = ($_agentP ne "" ? $_agentP : %$nodelist{"P"}->{"agent"});
 if ($_is_mod_o != -1) { $_is_mod = $_is_mod_o; }
 if ($_is_dev_o != -1) { $_is_dev = $_is_dev_o; }
 
@@ -120,9 +136,15 @@ if ($_logdir ne "")
 }
 
 my $cfg = {};
-my $cfg_file = './rrscluster.cfg';
 load_cfg();
 
+if ($_verbose)
+{
+	print "[AGENT A] ".%$nodelist{"A"}->{"agent"}."\n";
+	print "[AGENT F] ".%$nodelist{"F"}->{"agent"}."\n";
+	print "[AGENT P] ".%$nodelist{"P"}->{"agent"}."\n";
+	print "[MAP] ".$_map."\n";
+}
 
 if ($cmd eq "run")
 {
@@ -194,7 +216,12 @@ else
 	print_help();
 }
 
-exit 0;
+
+if ($_verbose)
+{
+	print "[EXIT] 0\n";
+}
+exit(0);
 
 
 sub print_help
@@ -631,14 +658,35 @@ sub start_server_closing_proc
 	close(OUT);
 
 	print $alias.": [START] Simulation log data will make\n";
-#    ssh $1 sh -c "'cd /var/tmp/robocup/${2}/roborescue/boot; tar zcvf ../../LOG/${DATECODE}-${MAP}/${DATECODE}-${MAP}-${FAGENT}-${PAGENT}-${AAGENT}.tar.gz logs'"
-#    ssh $1 sh -c "'cd /var/tmp/robocup/${2}/roborescue/boot; echo "${DATECODE},${MAP},${FAGENT},${PAGENT},${AAGENT},"; sh ./print-lastscore.sh'" | tee ${OACIS_WORKDIR}/score.txt
-	$ssh->system("sh -c 'cd /var/tmp/robocup/${alias}/roborescue/boot; tar zcvf ../../LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".tar.gz logs'");
-	$ssh->scp_get({recursive => 1, quiet => 1}, "/var/tmp/robocup/S/LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".tar.gz", $_logdir."simulation_log.tar.gz");
+	my $archive_ext = "tar.gz";
+	if ( %$nodelist{$alias}->{"archiver"} eq "gzip")
+	{
+		$archive_ext = "tar.gz";
+		$ssh->system("sh -c 'cd /var/tmp/robocup/${alias}/roborescue/boot; tar zcf ../../LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".tar.gz logs'");
+	}
+	elsif ( %$nodelist{$alias}->{"archiver"} eq "7zip")
+	{
+		$archive_ext = "7z";
+		$ssh->system("sh -c 'cd /var/tmp/robocup/${alias}/roborescue/boot; 7za a -m0=lzma2 ../../LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".7z logs'");
+	}
+	elsif ( %$nodelist{$alias}->{"archiver"} eq "zip")
+	{
+		$archive_ext = "zip";
+		$ssh->system("sh -c 'cd /var/tmp/robocup/${alias}/roborescue/boot; zip -r ../../LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".zip logs'");
+	}
+	$ssh->scp_get({recursive => 1, quiet => 1}, "/var/tmp/robocup/S/LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".".$archive_ext, $_logdir."simulation_log.".$archive_ext);
+	$ssh->system("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; cd /var/tmp/robocup/S/roborescue/boot; ./logextract.sh ./logs/rescue.log /var/tmp/robocup/S/tmp/extracts'");
+	$ssh->scp_get({recursive => 1, quiet => 1}, "/var/tmp/robocup/S/tmp/extracts", $_logdir."extracts");
 	open(OUT, ">$_logdir"."score.txt") or die "$!";
 	my ($rout, $pid) = $ssh->pipe_out("sh -c 'cd /var/tmp/robocup/${alias}/roborescue/boot; sh ./print-lastscore.sh'");
 	while (<$rout>)
 	{ print OUT $_; }
+	close(OUT);
+
+	open(OUT, ">$_logdir"."_output.json") or die "$!";
+	my $output_data = {};
+	$output_data->{"Score"} = 0 + &get_content($_logdir."extracts/final-score.txt");
+	print OUT encode_json($output_data);
 	close(OUT);
 	print $alias.": [FINISH] Simulation log data has make\n";
 }
