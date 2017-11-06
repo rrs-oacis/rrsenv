@@ -29,7 +29,7 @@ function serverProc () {
     scp $1:"/var/tmp/robocup/${2}/LOG/${DATECODE}-${MAP}/${DATECODE}-${MAP}-${AAGENT}.${EXTENSION}" ${OACIS_WORKDIR}/simulation_log.${EXTENSION}
 
     ssh $1 sh -c "'cd /var/tmp/robocup/${2}/roborescue/boot; echo "${DATECODE},${MAP},${FAGENT},${PAGENT},${AAGENT},"; sh ./print-lastscore.sh'" | tee ${OACIS_WORKDIR}/score.txt
-    ssh $1 sh -c "'export LC_ALL=en_US.UTF-8; export DISPLAY=:0; rm -rf /tmp/img_log; mkdir /tmp/img_log; cd /var/tmp/robocup/${2}/roborescue/boot; bash ./logextract.sh ./logs/rescue.log /tmp/img_log'"
+    ssh $1 sh -c "'export LC_ALL=en_US.UTF-8; export DISPLAY=:0; export AWT_FORCE_HEADFUL=true; rm -rf /tmp/img_log; mkdir /tmp/img_log; cd /var/tmp/robocup/${2}/roborescue/boot; bash ./logextract.sh ./logs/rescue.log /tmp/img_log'"
     scp -r $1:/tmp/img_log ${OACIS_WORKDIR}/
     sh ./countimage.sh ${OACIS_WORKDIR}/img_log | tee ${OACIS_WORKDIR}/img_log/count.txt
 }
