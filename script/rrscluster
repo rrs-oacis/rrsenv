@@ -446,7 +446,7 @@ sub killall_proc
 	my $ssh = %$nodelist{$alias}->{"ssh"};
 
 	$ssh->system("killall java");
-	$ssh->system("pkill java");
+	$ssh->system("pkill -f java");
 
 	if ($alias eq "S")
 	{
@@ -456,12 +456,12 @@ sub killall_proc
 		$ssh->system("killall noXterm-start-comprun.sh");
 		$ssh->system("killall start-precompute.sh");
 		$ssh->system("killall start-comprun.sh");
-		$ssh->system("pkill noGUI-start-precompute.sh");
-		$ssh->system("pkill noGUI-start-comprun.sh");
-		$ssh->system("pkill noXterm-start-precompute.sh");
-		$ssh->system("pkill noXterm-start-comprun.sh");
-		$ssh->system("pkill start-precompute.sh");
-		$ssh->system("pkill start-comprun.sh");
+		$ssh->system("pkill -f noGUI-start-precompute.sh");
+		$ssh->system("pkill -f noGUI-start-comprun.sh");
+		$ssh->system("pkill -f noXterm-start-precompute.sh");
+		$ssh->system("pkill -f noXterm-start-comprun.sh");
+		$ssh->system("pkill -f start-precompute.sh");
+		$ssh->system("pkill -f start-comprun.sh");
 	}
 }
 
