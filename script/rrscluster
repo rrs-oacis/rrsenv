@@ -716,7 +716,7 @@ sub start_agent_proc
 	open(OUT, ">$_logdir"."agent".$alias.".txt") or die "$!";
 
 	print $alias.": [START] Agent will start for full running\n";
-	my (undef, $rout, undef, $pid) = $ssh->open_ex( { stderr_to_stdout => 1, stdout_pipe => 1 },
+	my ($rout, undef, $pid) = $ssh->open_ex( { stderr_to_stdout => 1, stdout_pipe => 1 },
 		"sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; cd /var/tmp/robocup/".$alias."/AGENT/".$agent."; bash ./start.sh ".$f." ".$f." ".$p." ".$p." ".$a." ".$a." ".$server_hostname."'");
 	while (<$rout>)
 	{ print OUT $_; }
