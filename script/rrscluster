@@ -627,7 +627,9 @@ sub start_server_proc
 
 	my $ssh = %$nodelist{$alias}->{"ssh"};
 
-	open(OUT, ">$_logdir"."server.log") or die "$!";
+	my $fh;
+	open($fh, ">$_logdir"."server.log") or die "$!";
+	$fh->autoflush;
 
 	print $alias.": [START] Simulation server will start for full running\n";
 	my $pid;
@@ -635,11 +637,11 @@ sub start_server_proc
 	die "pipe_out method failed: " . $ssh->error;
 	while (<$start_server_proc_rout>)
 	{
-		print OUT $_;
+		print $fh $_;
 		if ($_ =~ /Start your agents/)
 		{
 			print $alias.": [FINISH] Simulation server has started\n";
-			close(OUT);
+			close($fh);
 			return;
 		}
 	}
@@ -713,12 +715,14 @@ sub start_agent_proc
 
 	print $alias.": ".%$nodelist{$alias}->{"agent"}."\n";
 
-	open(OUT2, ">$_logdir"."agent".$alias.".txt") or die "$!";
+	my $fh;
+	open($fh, ">$_logdir"."agent".$alias.".txt") or die "$!";
+	$fh->autoflush;
 	print $alias.": [START] Agent will start for full running\n";
 	my (undef, $rout, undef, $pid) = $ssh->open_ex( { stderr_to_stdout => 1, stdin_pipe => 1, stdout_pipe => 1 },
 		"echo $alias ; sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; cd /var/tmp/robocup/".$alias."/AGENT/".$agent."; bash ./start.sh ".$f." ".$f." ".$p." ".$p." ".$a." ".$a." ".$server_hostname."'");
 	while (<$rout>)
-	{ print OUT2 $_; }
-	close(OUT2);
+	{ print $fh $_; }
+	close($fh);
 	print $alias.": [FINISH] Agent full running was ended\n";
 }
