@@ -87,6 +87,7 @@ if ($_input ne "")
 	$_mod_data = "\n";
 	while (my ($key, $value) = each(%$json_input))
 	{
+		$key =~ s/__DOT__/./;
 		if ($key =~ /^MOD_/)
 		{
 			$key =~ s/^MOD_//;
