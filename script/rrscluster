@@ -163,6 +163,7 @@ if ($cmd eq "run")
 		precompute();
 	}
 	start();
+	killall();
 	disconnect_hosts();
 }
 elsif ($cmd eq "kill")
