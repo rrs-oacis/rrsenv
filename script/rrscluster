@@ -48,9 +48,10 @@ if ($argc < 1)
 }
 
 my ($cmd, @opts) = @ARGV;
-my ($_verbose, $_password);
+my ($_verbose, $_force, $_password);
 GetOptionsFromArray(\@opts,
 	"verbose|v" => \$_verbose,
+	"force|f" => \$_force,
 	"input|i=s" => \$_input,
 	"password|p=s" => \$_password,
 	"config|c=s" => \$cfg_file,
@@ -165,6 +166,7 @@ if ($cmd eq "run")
 	start();
 	killall();
 	disconnect_hosts();
+	check_validrun();
 }
 elsif ($cmd eq "kill")
 {
@@ -447,15 +449,17 @@ sub killall_proc
 
 	my $ssh = %$nodelist{$alias}->{"ssh"};
 
-	$ssh->system("killall java");
-	$ssh->system("pkill -f java");
+	my $signal = ($_force ? "-9" : "");
+
+	$ssh->system("killall $signal java");
+	$ssh->system("pkill $signal -f java");
 
 	if ($alias eq "S")
 	{
-		$ssh->system("killall start-precompute.sh");
-		$ssh->system("killall start-comprun.sh");
-		$ssh->system("pkill -f start-precompute.sh");
-		$ssh->system("pkill -f start-comprun.sh");
+		$ssh->system("killall $signal start-precompute.sh");
+		$ssh->system("killall $signal start-comprun.sh");
+		$ssh->system("pkill $signal -f start-precompute.sh");
+		$ssh->system("pkill $signal -f start-comprun.sh");
 	}
 }
 
@@ -727,4 +731,41 @@ sub start_agent_proc
 	{ print $fh $_; }
 	close($fh);
 	print $alias.": [FINISH] Agent full running was ended\n";
+}
+
+sub check_validrun
+{
+	print "[BEGIN] VALID RUN CHECK\n";
+
+	open(SCOREFILE, "< ".$_logdir."extracts/scores.txt") or die("error(extract/scores.txt): $!");
+	my $scoretext = "";
+	while (my $line = <SCOREFILE>) { $scoretext .= $line; }
+	close(SCOREFILE);
+	my $stepcount = $scoretext;
+	$stepcount = $stepcount =~ s/ //g;
+
+	open(CONFIGFILE, "< ".$SCRIPTDIR."/../MAP/".$_map."/config/kernel.cfg") or die("error(map/config/kernel.cfg): $!");
+	my $scenario_timestep = 0;
+	while (my $line = <CONFIGFILE>)
+	{
+		$line =~ s/^\s+//;
+		if ($line =~ /^kernel\.timesteps/)
+		{
+			chomp($line);
+			$line =~ s/^kernel\.timesteps\s*:\s+(\d+).*$/$1/;
+			$scenario_timestep = 0 + $line;
+			last;
+		}
+	}
+	close(CONFIGFILE);
+
+	print "SCENARIO: ".$scenario_timestep."step\n";
+	print "RUN: ".$stepcount."step\n";
+
+	if ($stepcount != $scenario_timestep) {
+		print "[FAILED] Run is invalid(S:".$scenario_timestep."step != R:".$stepcount."step)\n";
+		exit 290;
+	}
+
+	print "[END] VALID RUN CHECK\n";
 }
