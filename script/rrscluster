@@ -387,7 +387,8 @@ sub setup_proc
 
 	if ($alias eq "S")
 	{
-		$ssh->system("test -d ".$workdir."/roborescue") or
+		$ssh->system("rm -rf /var/tmp/robocup/S/roborescue");
+#		$ssh->system("test -d ".$workdir."/roborescue") or
 		$ssh->scp_put({recursive => 1, quiet => 1}, $SCRIPTDIR."/../roborescue", $workdir."/roborescue");
 		$ssh->system("cd /var/tmp/robocup/S/roborescue; ./apache-ant-*/bin/ant clean-all clean oldsims compile jars");
 	}
