@@ -40,6 +40,10 @@ my $_mod_data = "{}";
 my $_dev_data = "{}";
 my $_use_precompute = 0;
 
+use constant ALL => 0;
+use constant SCORE => 1;
+my $_logmode = ALL;
+
 my $argc = @ARGV;
 if ($argc < 1)
 {
@@ -48,7 +52,7 @@ if ($argc < 1)
 }
 
 my ($cmd, @opts) = @ARGV;
-my ($_verbose, $_force, $_password);
+my ($_verbose, $_force, $_password, $logmode);
 GetOptionsFromArray(\@opts,
 	"verbose|v" => \$_verbose,
 	"force|f" => \$_force,
@@ -59,6 +63,7 @@ GetOptionsFromArray(\@opts,
 	"precompute|pre" => \$_use_precompute,
 	"ismod|mod" => \$_is_mod_o,
 	"isdev|dev" => \$_is_dev_o,
+	"logmode|lm=s" => \$logmode,
 	"map|m=s" => \$_map,
 	"agent_a|A=s" => \$_agentA,
 	"agent_f|F=s" => \$_agentF,
@@ -111,9 +116,20 @@ if ($_input ne "")
 		{
 			$_is_dev = ($value eq "1" || $value == 1 || lc($value) eq "true");
 		}
+		elsif ($key eq "LOGMODE")
+		{
+			if ($value eq "ALL") { $_logmode = ALL; }
+			elsif ($value eq "SCORE") { $_logmode = SCORE; }
+		}
 	}
 
 	$_dev_data = encode_json($dev_data);
+}
+
+if ($logmode ne "")
+{
+	if ($logmode eq "ALL") { $_logmode = ALL; }
+	elsif ($logmode eq "SCORE") { $_logmode = SCORE; }
 }
 
 %$nodelist{"A"}->{"agent"} = ($_agentA ne "" ? $_agentA : %$nodelist{"A"}->{"agent"});
@@ -707,23 +723,27 @@ sub start_server_closing_proc
 	close(OUT);
 
 	print $alias.": [START] Simulation log data will make\n";
-	my $archive_ext = "tar.gz";
-	if ( %$nodelist{$alias}->{"archiver"} eq "gzip")
+	if ($_logmode == ALL)
 	{
-		$archive_ext = "tar.gz";
-		$ssh->system("sh -c 'cd /var/tmp/robocup/${alias}/roborescue/boot; tar zcf ../../LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".tar.gz logs'");
+		my $archive_ext = "tar.gz";
+		if ( %$nodelist{$alias}->{"archiver"} eq "gzip")
+		{
+			$archive_ext = "tar.gz";
+			$ssh->system("sh -c 'cd /var/tmp/robocup/${alias}/roborescue/boot; tar zcf ../../LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".tar.gz logs'");
+		}
+		elsif ( %$nodelist{$alias}->{"archiver"} eq "7zip")
+		{
+			$archive_ext = "7z";
+			$ssh->system("sh -c 'cd /var/tmp/robocup/${alias}/roborescue/boot; 7za a -m0=lzma2 ../../LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".7z logs'");
+		}
+		elsif ( %$nodelist{$alias}->{"archiver"} eq "zip")
+		{
+			$archive_ext = "zip";
+			$ssh->system("sh -c 'cd /var/tmp/robocup/${alias}/roborescue/boot; zip -r ../../LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".zip logs'");
+		}
+		$ssh->scp_get({recursive => 1, quiet => 1}, "/var/tmp/robocup/S/LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".".$archive_ext, $_logdir."simulation_log.".$archive_ext);
 	}
-	elsif ( %$nodelist{$alias}->{"archiver"} eq "7zip")
-	{
-		$archive_ext = "7z";
-		$ssh->system("sh -c 'cd /var/tmp/robocup/${alias}/roborescue/boot; 7za a -m0=lzma2 ../../LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".7z logs'");
-	}
-	elsif ( %$nodelist{$alias}->{"archiver"} eq "zip")
-	{
-		$archive_ext = "zip";
-		$ssh->system("sh -c 'cd /var/tmp/robocup/${alias}/roborescue/boot; zip -r ../../LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".zip logs'");
-	}
-	$ssh->scp_get({recursive => 1, quiet => 1}, "/var/tmp/robocup/S/LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".".$archive_ext, $_logdir."simulation_log.".$archive_ext);
+
 	$ssh->system("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; cd /var/tmp/robocup/S/roborescue/boot; mkdir -p /var/tmp/robocup/S/tmp/extracts; ./logextract.sh ./logs/rescue.log /var/tmp/robocup/S/tmp/extracts'");
 	$ssh->scp_get({recursive => 1, quiet => 1}, "/var/tmp/robocup/S/tmp/extracts", $_logdir."extracts");
 	open(OUT, ">$_logdir"."score.txt") or die "$!";
