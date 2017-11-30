@@ -200,6 +200,14 @@ elsif ($cmd eq "check")
 	}
 	disconnect_hosts();
 }
+elsif ($cmd eq "update-mapimage")
+{
+	connect_hosts();
+	killall();
+	start_mapimage_update();
+	killall();
+	disconnect_hosts();
+}
 elsif ($cmd eq "show-cfg")
 {
 	if (!cfg_loaded()) { exit 1; }
@@ -462,6 +470,32 @@ sub killall_proc
 		$ssh->system("pkill $signal -f start-precompute.sh");
 		$ssh->system("pkill $signal -f start-comprun.sh");
 	}
+}
+
+sub start_mapimage_update
+{
+	my $ssh = &get_connect("S");
+
+	$ssh->system("rm -rf /var/tmp/robocup/S/tmp");
+
+	print "[START] Map file uploading will start\n";
+	$ssh->system("mkdir -p /var/tmp/robocup/S/tmp");
+	$ssh->scp_put({recursive => 1, quiet => 1}, $SCRIPTDIR."/../MAP/$_map", "/var/tmp/robocup/S/tmp/");
+	$ssh->system("echo >> /var/tmp/robocup/S/tmp/${_map}/config/kernel.cfg");
+	$ssh->system("echo kernel.timesteps: 2 >> /var/tmp/robocup/S/tmp/${_map}/config/kernel.cfg");
+	$ssh->system("echo kernel.startup.connect-time: 10000 >> /var/tmp/robocup/S/tmp/${_map}/config/kernel.cfg");
+	print "[FINISH] Map file has uploaded\n";
+	print "[START] Simulation server will start for map creating\n";
+	$ssh->system("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; cd /var/tmp/robocup/S/roborescue/boot; ./start-comprun.sh -m ../../tmp/${_map}/map -c ../../tmp/${_map}/config 2>&1'");
+	print "[FINISH] Simulation server will start for map creating\n";
+	killall();
+	print "[START] Map image generating will start\n";
+	$ssh->system("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; cd /var/tmp/robocup/S/roborescue/boot; mkdir -p /var/tmp/robocup/S/tmp/extracts; ./logextract.sh ./logs/rescue.log /var/tmp/robocup/S/tmp/extracts'");
+	$ssh->scp_get("/var/tmp/robocup/S/tmp/extracts/init-score.txt", $_logdir);
+	$ssh->scp_get("/var/tmp/robocup/S/tmp/extracts/snapshot-init.png", $SCRIPTDIR."/../MAP/${_map}/preview.png");
+	print "[FINISH] Map image has downloaded\n";
+
+	$ssh->system("rm -rf /var/tmp/robocup/S/tmp");
 }
 
 sub preparate
