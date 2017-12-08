@@ -434,7 +434,7 @@ sub check_proc
 
 	$ssh->system("test -r ".$workdir." -a -w ".$workdir." -a -x ".$workdir) or
 	print "@".$alias."23\n";
-	$ssh->system("sh -c 'export DISPLAY=:0.0; xhost || echo disabled' | grep -q disabled") or
+	$ssh->system("sh -c 'export DISPLAY=:0.0; . ${RRSDIR}/ENV.sh >/dev/null; xhost || echo disabled' | grep -q disabled") or
 	print "@".$alias."24\n";
 
 	$ssh->system("sh -c 'java -version 2>&1' | grep -q HotSpot") or
@@ -502,11 +502,11 @@ sub start_mapimage_update
 	$ssh->system("echo kernel.startup.connect-time: 10000 >> /var/tmp/robocup/S/tmp/${_map}/config/kernel.cfg");
 	print "[FINISH] Map file has uploaded\n";
 	print "[START] Simulation server will start for map creating\n";
-	$ssh->system("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; cd /var/tmp/robocup/S/roborescue/boot; ./start-comprun.sh -m ../../tmp/${_map}/map -c ../../tmp/${_map}/config 2>&1'");
+	$ssh->system("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; . ${RRSDIR}/ENV.sh >/dev/null; cd /var/tmp/robocup/S/roborescue/boot; ./start-comprun.sh -m ../../tmp/${_map}/map -c ../../tmp/${_map}/config 2>&1'");
 	print "[FINISH] Simulation server will start for map creating\n";
 	killall();
 	print "[START] Map image generating will start\n";
-	$ssh->system("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; cd /var/tmp/robocup/S/roborescue/boot; mkdir -p /var/tmp/robocup/S/tmp/extracts; ./logextract.sh ./logs/rescue.log /var/tmp/robocup/S/tmp/extracts'");
+	$ssh->system("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; . ${RRSDIR}/ENV.sh >/dev/null; cd /var/tmp/robocup/S/roborescue/boot; mkdir -p /var/tmp/robocup/S/tmp/extracts; ./logextract.sh ./logs/rescue.log /var/tmp/robocup/S/tmp/extracts'");
 	$ssh->scp_get("/var/tmp/robocup/S/tmp/extracts/init-score.txt", $_logdir);
 	$ssh->scp_get("/var/tmp/robocup/S/tmp/extracts/snapshot-init.png", $SCRIPTDIR."/../MAP/${_map}/preview.png");
 	print "[FINISH] Map image has downloaded\n";
@@ -614,7 +614,7 @@ sub precompute_server_proc
 
 	print $alias.": [START] Simulation server will start for precompute\n";
 	my $pid;
-	($start_precompute_proc_rout, $pid) = $ssh->pipe_out("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; cd /var/tmp/robocup/${alias}/roborescue/boot; ./start-precompute.sh -m ../../MAP/${_map}/map -c ../../MAP/${_map}/config 2>&1'") or
+	($start_precompute_proc_rout, $pid) = $ssh->pipe_out("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; . ${RRSDIR}/ENV.sh >/dev/null; cd /var/tmp/robocup/${alias}/roborescue/boot; ./start-precompute.sh -m ../../MAP/${_map}/map -c ../../MAP/${_map}/config 2>&1'") or
 	die "pipe_out method failed: " . $ssh->error;
 	while (<$start_precompute_proc_rout>)
 	{
@@ -647,7 +647,7 @@ sub precompute_agent_proc
 	print $alias.": ".%$nodelist{$alias}->{"agent"}."\n";
 
 	print $alias.": [START] Agent will start for precompute\n";
-	my ($rout, $pid) = $ssh->pipe_out("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; cd /var/tmp/robocup/${alias}/AGENT/${agent}; timeout 120 bash ./precompute.sh $f 0 $p 0 $a 0 ${server_hostname} 2>&1 || echo TIMEOUTED'");
+	my ($rout, $pid) = $ssh->pipe_out("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; . ${RRSDIR}/ENV.sh >/dev/null; cd /var/tmp/robocup/${alias}/AGENT/${agent}; timeout 120 bash ./precompute.sh $f 0 $p 0 $a 0 ${server_hostname} 2>&1 || echo TIMEOUTED'");
 	while (<$rout>)
 	{
 		print OUT $_;
@@ -690,7 +690,7 @@ sub start_server_proc
 
 	print $alias.": [START] Simulation server will start for full running\n";
 	my $pid;
-	($start_server_proc_rout, $pid) = $ssh->pipe_out("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; cd /var/tmp/robocup/${alias}/roborescue/boot; ./start-comprun.sh -m ../../MAP/${_map}/map -c ../../MAP/${_map}/config 2>&1'") or
+	($start_server_proc_rout, $pid) = $ssh->pipe_out("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; . ${RRSDIR}/ENV.sh >/dev/null; cd /var/tmp/robocup/${alias}/roborescue/boot; ./start-comprun.sh -m ../../MAP/${_map}/map -c ../../MAP/${_map}/config 2>&1'") or
 	die "pipe_out method failed: " . $ssh->error;
 	while (<$start_server_proc_rout>)
 	{
@@ -744,7 +744,7 @@ sub start_server_closing_proc
 		$ssh->scp_get({recursive => 1, quiet => 1}, "/var/tmp/robocup/S/LOG/${datecode}-${_map}/${datecode}-${_map}-".%$nodelist{"F"}->{"agent"}."-".%$nodelist{"P"}->{"agent"}."-".%$nodelist{"A"}->{"agent"}.".".$archive_ext, $_logdir."simulation_log.".$archive_ext);
 	}
 
-	$ssh->system("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; cd /var/tmp/robocup/S/roborescue/boot; mkdir -p /var/tmp/robocup/S/tmp/extracts; ./logextract.sh ./logs/rescue.log /var/tmp/robocup/S/tmp/extracts'");
+	$ssh->system("sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; . ${RRSDIR}/ENV.sh >/dev/null; cd /var/tmp/robocup/S/roborescue/boot; mkdir -p /var/tmp/robocup/S/tmp/extracts; ./logextract.sh ./logs/rescue.log /var/tmp/robocup/S/tmp/extracts'");
 	$ssh->scp_get({recursive => 1, quiet => 1}, "/var/tmp/robocup/S/tmp/extracts", $_logdir."extracts");
 	open(OUT, ">$_logdir"."score.txt") or die "$!";
 	my ($rout, $pid) = $ssh->pipe_out("sh -c 'cd /var/tmp/robocup/S/roborescue/boot; sh ./print-lastscore.sh'");
@@ -781,7 +781,7 @@ sub start_agent_proc
 	$fh->autoflush;
 	print $alias.": [START] Agent will start for full running\n";
 	my (undef, $rout, undef, $pid) = $ssh->open_ex( { stderr_to_stdout => 1, stdin_pipe => 1, stdout_pipe => 1 },
-		"echo $alias ; sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; cd /var/tmp/robocup/".$alias."/AGENT/".$agent."; bash ./start.sh ".$f." ".$f." ".$p." ".$p." ".$a." ".$a." ".$server_hostname."'");
+		"echo $alias ; sh -c 'export LC_ALL=en_US.UTF-8; export DISPLAY=:0.0; export AWT_FORCE_HEADFUL=true; . ${RRSDIR}/ENV.sh >/dev/null; cd /var/tmp/robocup/".$alias."/AGENT/".$agent."; bash ./start.sh ".$f." ".$f." ".$p." ".$p." ".$a." ".$a." ".$server_hostname."'");
 	while (<$rout>)
 	{ print $fh $_; }
 	close($fh);
