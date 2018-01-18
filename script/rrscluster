@@ -475,7 +475,8 @@ sub killall_proc
 
 	my $ssh = %$nodelist{$alias}->{"ssh"};
 
-	my $signal = ($_force ? "-9" : "");
+	#	my $signal = ($_force ? "-9" : "");
+	my $signal = "-9";
 
 	$ssh->system("killall $signal java");
 	$ssh->system("pkill $signal -f java");
