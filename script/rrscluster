@@ -196,11 +196,7 @@ elsif ($cmd eq "setup")
 	connect_hosts();
 	while (my ($key, $node) = each(%$nodelist))
 	{
-		$node->{"thread"} = threads->new(\&setup_proc, $node->{"alias"});
-	}
-	while (my ($key, $node) = each(%$nodelist))
-	{
-		$node->{"thread"}->join;
+		&setup_proc($node->{"alias"});
 	}
 	disconnect_hosts();
 }
