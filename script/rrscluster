@@ -716,7 +716,11 @@ sub start_server_closing_proc
 	open(OUT, ">>$_logdir"."server.log") or die "$!";
 
 	while (<$start_server_proc_rout>)
-	{ print OUT $_; }
+	{
+		print OUT $_;
+		if ($_ =~ /Kernel has shut down$/)
+		{ last; }
+	}
 	close $start_server_proc_rout;
 	close(OUT);
 
