@@ -378,6 +378,7 @@ sub setup_proc
 
 	my $hostname = %$nodelist{$alias}->{"host"};
 	$hostname =~ s/^.*@//;
+	$hostname =~ s/:.*$//;
 	system("ssh-keygen -R ".$hostname);
 	system("ssh-keyscan ".$hostname." >>~/.ssh/known_hosts");
 
@@ -639,6 +640,7 @@ sub precompute_agent_proc
 	my $a = ($alias eq "A" ? 1 : 0);
 	my $server_hostname = %$nodelist{"S"}->{"host"};
 	$server_hostname =~ s/^.*@//;
+	$server_hostname =~ s/:.*$//;
 
 	my $agent = %$nodelist{$alias}->{"agent"};
 
@@ -769,6 +771,7 @@ sub start_agent_proc
 	my $a = ($alias eq "A" ? -1 : 0);
 	my $server_hostname = %$nodelist{"S"}->{"host"};
 	$server_hostname =~ s/^.*@//;
+	$server_hostname =~ s/:.*$//;
 
 	my $agent = %$nodelist{$alias}->{"agent"};
 
