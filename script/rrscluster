@@ -319,11 +319,13 @@ sub get_connect
 	my ($alias, $pass) = @_;
 
 	my $ssh;
+	my $host = %$nodelist{$alias}->{"host"};
+	$host =~ s/\/.*$//;
 
 	if (!defined($pass))
 	{
 		$ssh = Net::OpenSSH->new(
-			%$nodelist{$alias}->{"host"},
+			$host,
 			batch_mode => 1,
 			master_opts => [ -o => "StrictHostKeyChecking=no"]);
 		$ssh->error and print "@".$alias."20\n";
@@ -331,7 +333,7 @@ sub get_connect
 	else
 	{
 		$ssh = Net::OpenSSH->new(
-			%$nodelist{$alias}->{"host"},
+			$host,
 			password => $pass,
 			batch_mode => 1,
 			master_opts => [ -o => "StrictHostKeyChecking=no"]);
@@ -350,8 +352,10 @@ sub connect_hosts
 {
 	while (my ($key, $node) = each(%$nodelist))
 	{
+		my $host = $node->{"host"};
+		$host =~ s/\/.*$//;
 		$node->{"ssh"} = Net::OpenSSH->new(
-			$node->{"host"},
+			$host,
 			batch_mode => 1,
 			master_opts => [ -o => "StrictHostKeyChecking=no"]);
 		$node->{"ssh"}->error and print "@".$node->{"alias"}."20\n";
@@ -639,8 +643,15 @@ sub precompute_agent_proc
 	my $p = ($alias eq "P" ? 1 : 0);
 	my $a = ($alias eq "A" ? 1 : 0);
 	my $server_hostname = %$nodelist{"S"}->{"host"};
-	$server_hostname =~ s/^.*@//;
-	$server_hostname =~ s/:.*$//;
+	if ($server_hostname =~ /\//)
+	{
+		$server_hostname =~ s/^.*\///;
+	}
+	else
+	{
+		$server_hostname =~ s/^.*@//;
+		$server_hostname =~ s/:.*$//;
+	}
 
 	my $agent = %$nodelist{$alias}->{"agent"};
 
@@ -770,8 +781,15 @@ sub start_agent_proc
 	my $p = ($alias eq "P" ? -1 : 0);
 	my $a = ($alias eq "A" ? -1 : 0);
 	my $server_hostname = %$nodelist{"S"}->{"host"};
-	$server_hostname =~ s/^.*@//;
-	$server_hostname =~ s/:.*$//;
+	if ($server_hostname =~ /\//)
+	{
+		$server_hostname =~ s/^.*\///;
+	}
+	else
+	{
+		$server_hostname =~ s/^.*@//;
+		$server_hostname =~ s/:.*$//;
+	}
 
 	my $agent = %$nodelist{$alias}->{"agent"};
 
