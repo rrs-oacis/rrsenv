@@ -39,6 +39,7 @@ my $_is_dev_o = -1;
 my $_mod_data = "{}";
 my $_dev_data = "{}";
 my $_use_precompute = 0;
+my $_clean_env = 0;
 
 use constant ALL => 0;
 use constant SCORE => 1;
@@ -65,6 +66,7 @@ GetOptionsFromArray(\@opts,
 	"ismod|mod" => \$_is_mod_o,
 	"isdev|dev" => \$_is_dev_o,
 	"logmode|lm=s" => \$logmode,
+	"cleanenv|ce" => \$_clean_env,
 	"map|m=s" => \$_map,
 	"agent_a|A=s" => \$_agentA,
 	"agent_f|F=s" => \$_agentF,
@@ -121,6 +123,10 @@ if ($_input ne "")
 		{
 			if ($value eq "ALL") { $_logmode = ALL; }
 			elsif ($value eq "SCORE") { $_logmode = SCORE; }
+		}
+		elsif ($key eq "CLEAN_ENV")
+		{
+			$_clean_env = ($value eq "1" || $value == 1 || lc($value) eq "true" || $_clean_env);
 		}
 	}
 
@@ -182,6 +188,7 @@ if ($cmd eq "run")
 	}
 	start();
 	killall();
+	cleanenv();
 	disconnect_hosts();
 	check_validrun();
 }
@@ -219,6 +226,7 @@ elsif ($cmd eq "update-mapimage")
 	killall();
 	start_mapimage_update();
 	killall();
+	cleanenv();
 	disconnect_hosts();
 }
 elsif ($cmd eq "show-cfg")
@@ -479,15 +487,47 @@ sub killall_proc
 	#	my $signal = ($_force ? "-9" : "");
 	my $signal = "-9";
 
-	$ssh->system("killall $signal java");
-	$ssh->system("pkill $signal -f java");
+	$ssh->system("sh -c 'killall $signal java >/dev/null 2>&1'");
+	$ssh->system("sh -c 'pkill $signal -f java >/dev/null 2>&1'");
 
 	if ($alias eq "S")
 	{
-		$ssh->system("killall $signal start-precompute.sh");
-		$ssh->system("killall $signal start-comprun.sh");
-		$ssh->system("pkill $signal -f start-precompute.sh");
-		$ssh->system("pkill $signal -f start-comprun.sh");
+		$ssh->system("sh -c 'killall $signal start-precompute.sh >/dev/null 2>&1'");
+		$ssh->system("sh -c 'killall $signal start-comprun.sh >/dev/null 2>&1'");
+		$ssh->system("sh -c 'pkill $signal -f start-precompute.sh >/dev/null 2>&1'");
+		$ssh->system("sh -c 'pkill $signal -f start-comprun.sh >/dev/null 2>&1'");
+	}
+}
+
+sub cleanenv
+{
+	print "[START] Clean simulation environments\n";
+	while (my ($key, $node) = each(%$nodelist))
+	{
+		$node->{"thread"} = threads->new(\&cleanenv_proc, $node->{"alias"});
+	}
+	while (my ($key, $node) = each(%$nodelist))
+	{
+		$node->{"thread"}->join;
+	}
+	print "[FINISH] All simulation environments were cleaned\n";
+}
+
+sub cleanenv_proc
+{
+	my ($alias) = @_;
+
+	my $ssh = %$nodelist{$alias}->{"ssh"};
+
+	if ($alias eq "S")
+	{
+		$ssh->system("rm -rf /var/tmp/robocup/$alias/LOG");
+		$ssh->system("rm -rf /var/tmp/robocup/$alias/MAP");
+		$ssh->system("rm -rf /var/tmp/robocup/$alias/tmp");
+	}
+	else
+	{
+		$ssh->system("rm -rf /var/tmp/robocup/$alias/*");
 	}
 }
 
