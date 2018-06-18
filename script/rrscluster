@@ -196,6 +196,7 @@ elsif ($cmd eq "kill")
 {
 	connect_hosts();
 	killall();
+	cleanenv();
 	disconnect_hosts();
 }
 elsif ($cmd eq "setup")
