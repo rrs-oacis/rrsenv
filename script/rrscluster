@@ -441,18 +441,16 @@ sub check_proc
 	print "@".$alias."21\n";
 
 	$ssh->system("test -d ".$workdir) or
-	print "@".$alias."22\n";
+	print "@".$alias."22 The working dir. is not exist.\n";
 
 	$ssh->system("test -r ".$workdir." -a -w ".$workdir." -a -x ".$workdir) or
-	print "@".$alias."23\n";
+	print "@".$alias."23 The working dir. has not sufficient permission.\n";
+	
 	$ssh->system("sh -c 'export DISPLAY=:0.0; xhost || echo disabled' | grep -q disabled") or
-	print "@".$alias."24\n";
-
-	$ssh->system("sh -c 'java -version 2>&1' | grep -q HotSpot") or
-	print "@".$alias."25\n";
+	print "@".$alias."24 To use the local display is restricted by xhost.\n";
 
 	$ssh->system("sh -c 'javac -version 2>&1' | xargs echo "."@".$alias."0") or
-	print "@".$alias."26\n";
+	print "@".$alias."26 javac does not reach to anything.\n";
 
 	if ($alias eq "S")
 	{
@@ -461,7 +459,7 @@ sub check_proc
 		elsif ( %$nodelist{$alias}->{"archiver"} eq "7zip") { $archive_cmd = "7za" }
 		elsif ( %$nodelist{$alias}->{"archiver"} eq "zip") { $archive_cmd = "zip" }
 		$ssh->system("which ".$archive_cmd." || exit 1 && exit 0") or
-		print "@".$alias."27\n";
+		print "@".$alias."27 The specified archiver is not installed.\n";
 	}
 }
 
